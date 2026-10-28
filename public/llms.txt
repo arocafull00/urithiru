@@ -1,0 +1,5 @@
+# Urithiru
+
+Urithiru es una aplicación privada de administración para consultar proyectos, tráfico y logs de Vercel. Requiere una cuenta autorizada mediante Clerk. Los datos internos y las API no son públicos.
+
+- [Acceso](./)
