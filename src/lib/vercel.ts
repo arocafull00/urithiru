@@ -214,6 +214,7 @@ export async function getLiveLogs(
           if (!r.rowId || !r.timestampInMs) return;
           logs.push({
             id: String(r.rowId),
+            provider: "vercel",
             projectId: project.id,
             projectName: project.name,
             timestamp: Number(r.timestampInMs),
@@ -225,6 +226,8 @@ export async function getLiveLogs(
               : null,
             source: String(r.source ?? "runtime"),
             deploymentId: project.deploymentId!,
+            url: null,
+            count: null,
           });
         } catch {
           /* heartbeat and SSE metadata */

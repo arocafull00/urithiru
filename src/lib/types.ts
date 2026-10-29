@@ -30,8 +30,10 @@ export type Details = {
   countries: Breakdown[];
   devices: Breakdown[];
 };
+export type LogProvider = "vercel" | "sentry" | "supabase";
 export type LogEntry = {
   id: string;
+  provider: LogProvider;
   projectId: string;
   projectName: string;
   timestamp: number;
@@ -41,6 +43,8 @@ export type LogEntry = {
   statusCode: number | null;
   source: string;
   deploymentId: string;
+  url: string | null;
+  count: number | null;
 };
 export type LogResult = {
   logs: LogEntry[];
@@ -57,4 +61,6 @@ export type Session = {
   vercel: boolean;
   database: boolean;
   drains: boolean;
+  sentry: boolean;
+  supabase: boolean;
 };

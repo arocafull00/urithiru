@@ -30,7 +30,7 @@ Las credenciales de Vercel y Neon nunca se envían al cliente. Toda API privada 
 - Evolución temporal y clasificación de proyectos por tráfico; filtros de 24 horas, 7 y 30 días, equipo y proyecto.
 - Tabla buscable con favoritos, ordenación y enlaces al proyecto en Vercel.
 - Detalle por páginas, fuentes, países y dispositivos.
-- Lectura global de logs y filtro de errores, con mensajes de cobertura parcial.
+- Lectura global de logs y filtro de errores de Vercel, Sentry y Supabase, con filtro por fuente y mensajes de cobertura parcial.
 - Tema claro/oscuro, diseño adaptable y PWA instalable.
 - Sesión de visualización y hasta cuatro lecturas de inicio persistidas con Zustand; actualización en segundo plano. Los proyectos sin cambios conservan sus referencias para evitar renderizados innecesarios.
 
@@ -41,6 +41,25 @@ Los visitantes del resumen son la **suma de los visitantes de cada proyecto**, n
 Web Analytics usa la API pública de Vercel (`/v1/query/web-analytics/visits/aggregate`). Los proyectos con Analytics desactivado se muestran como tales; una respuesta desconocida o fallida no se sustituye por cero. La ventana consultable depende del plan. Si Vercel rechaza 30 días, el panel conserva ese error por proyecto.
 
 Sin base de datos, los logs se leen de los despliegues actuales de producción, durante un máximo de 2,5 s por proyecto y con concurrencia limitada. Se reciben como máximo 200 eventos por proyecto y 1.000 por respuesta. **Una lectura sin logs no confirma que no existan errores anteriores.** La vista de errores señala también despliegues de producción fallidos. No es monitorización de disponibilidad ni incluye excepciones del navegador que la aplicación no envíe a Vercel.
+
+## Sentry y Supabase
+
+Además de Vercel, la vista de Logs/Errores puede incluir otras dos fuentes. Cada una se activa al configurar su token y se consulta en paralelo con las demás. Si una falla, aparece como aviso de cobertura parcial y el resto se sigue mostrando. Los tokens solo se usan en el servidor.
+
+| Variable                | Uso                                                                                                                                   |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `SENTRY_AUTH_TOKEN`     | Token personal (User Auth Token) con `org:read`, `project:read` y `event:read`; los Organization Tokens no sirven.                    |
+| `SENTRY_ORG`            | Slug de la organización (`adrian-rocafull`).                                                                                          |
+| `SENTRY_URL`            | API de la región: `https://de.sentry.io` para la UE. Por defecto, `https://sentry.io`.                                                |
+| `SENTRY_PROJECTS`       | Opcional. Pares `slug-sentry:proyecto-vercel` separados por comas, p. ej. `diariamente:diariamente-web,wordle:wordle-delete-account`. |
+| `SUPABASE_ACCESS_TOKEN` | Token de acceso personal de Supabase (Account → Access Tokens).                                                                       |
+| `SUPABASE_PROJECTS`     | Opcional. Pares `ref-o-nombre:proyecto-vercel`, p. ej. `comunicacion-e-influencia:comunica-con-autoridad`.                            |
+
+- **Sentry**: muestra los issues sin resolver vistos en el periodo elegido, hasta 100 por consulta, con su última aparición, número de eventos y enlace al issue. En Errores solo aparecen los de nivel `error` o `fatal`.
+- **Supabase**: consulta el endpoint unificado de logs de la Management API (SQL ClickHouse) en cada proyecto activo. Recoge avisos y errores de Postgres, Auth, Storage y Edge Functions, además de las respuestas 4xx/5xx del gateway, hasta 200 por proyecto. Supabase solo permite consultar **las últimas 24 horas**, sea cual sea el periodo elegido.
+- **Emparejado**: un proyecto de Sentry o Supabase se asocia al proyecto de Vercel con el mismo nombre (sin distinguir mayúsculas ni guiones) o al indicado en el mapa. Los que no se emparejan se muestran con su propio nombre y solo aparecen sin filtro de proyecto.
+
+Con los tokens en `.env.local`, la prueba de integración `scripts/smoke.ts` (ver Validar) indica cuántos eventos llegan de cada fuente y qué proyectos no se han emparejado.
 
 ## Histórico opcional con Neon
 

@@ -1,6 +1,8 @@
 import { requireAdmin } from "@/lib/auth";
 import { listTeams } from "@/lib/vercel";
 import { errorResponse, json } from "@/lib/http";
+import { sentryConfigured } from "@/lib/sentry";
+import { supabaseConfigured } from "@/lib/supabase";
 export async function GET() {
   try {
     const user = await requireAdmin();
@@ -14,6 +16,8 @@ export async function GET() {
       drains: Boolean(
         process.env.DATABASE_URL && process.env.VERCEL_DRAIN_SECRET,
       ),
+      sentry: sentryConfigured(),
+      supabase: supabaseConfigured(),
     });
   } catch (error) {
     return errorResponse(error);

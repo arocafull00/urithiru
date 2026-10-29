@@ -30,6 +30,7 @@ export async function historyLogs(
     .slice(0, 1000)
     .map((r) => ({
       id: r.id,
+      provider: "vercel",
       projectId: r.project_id,
       projectName:
         projects.find((p) => p.id === r.project_id)?.name ?? r.project_id,
@@ -40,6 +41,8 @@ export async function historyLogs(
       path: r.path,
       statusCode: r.status_code,
       source: r.source,
+      url: null,
+      count: null,
     }));
   return {
     logs,

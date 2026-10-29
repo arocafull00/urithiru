@@ -8,10 +8,12 @@ import {
   Activity,
   ArrowDownUp,
   ArrowUpRight,
+  Bug,
   ChartNoAxesCombined,
   Check,
   ChevronRight,
   CircleAlert,
+  Database,
   ExternalLink,
   FolderKanban,
   LayoutDashboard,
@@ -54,6 +56,7 @@ import type {
   Section,
   Details,
   LogResult,
+  LogProvider,
   TrafficPoint,
   Breakdown,
 } from "@/lib/types";
@@ -1138,6 +1141,12 @@ function BreakdownRows({ rows }: { rows: Breakdown[] }) {
   );
 }
 
+const PROVIDERS: Record<LogProvider, string> = {
+  vercel: "Vercel",
+  sentry: "Sentry",
+  supabase: "Supabase",
+};
+
 function Logs({
   projects,
   session,
@@ -1158,7 +1167,9 @@ function Logs({
   search: string;
 }) {
   const [level, setLevel] = useState("all");
+  const [provider, setProvider] = useState<"all" | LogProvider>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const multiSource = session.sentry || session.supabase;
   const { data, error, isValidating, mutate } = useSWR<LogResult>(
     [
       `/api/logs?team=${team}&period=${period}&project=${projectId}&errors=${errorsOnly ? 1 : 0}`,
@@ -1169,6 +1180,7 @@ function Logs({
   const logs = (data?.logs ?? []).filter(
     (l) =>
       (level === "all" || l.level === level) &&
+      (provider === "all" || (l.provider ?? "vercel") === provider) &&
       `${l.projectName} ${l.message} ${l.path} ${l.statusCode}`
         .toLowerCase()
         .includes(search.toLowerCase()),
@@ -1227,6 +1239,26 @@ function Logs({
                 )}
               </SelectContent>
             </Select>
+            {multiSource && (
+              <Select
+                value={provider}
+                onValueChange={(v) => setProvider(v as typeof provider)}
+              >
+                <SelectTrigger className="w-36" aria-label="Filtrar fuente">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las fuentes</SelectItem>
+                  <SelectItem value="vercel">Vercel</SelectItem>
+                  {session.sentry && (
+                    <SelectItem value="sentry">Sentry</SelectItem>
+                  )}
+                  {session.supabase && (
+                    <SelectItem value="supabase">Supabase</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         )}
         {!data && !error ? (
@@ -1238,52 +1270,83 @@ function Logs({
         ) : logs.length ? (
           <div className="log-list">
             {logs.slice(0, compact ? 5 : 1000).map((log) => (
-              <button
-                key={`${log.projectId}:${log.id}`}
-                className={cn("log-row", expanded === log.id && "expanded")}
-                aria-expanded={expanded === log.id}
-                onClick={() => setExpanded(expanded === log.id ? null : log.id)}
-              >
-                <span className="log-time">
-                  {new Intl.DateTimeFormat("es", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                    ...(period > 1 ? { day: "2-digit", month: "2-digit" } : {}),
-                  }).format(new Date(log.timestamp))}
-                </span>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    ["error", "fatal"].includes(log.level) ||
-                      (log.statusCode ?? 0) >= 500
-                      ? "danger"
-                      : "",
-                  )}
+              <div key={`${log.projectId}:${log.id}`}>
+                <button
+                  className={cn("log-row", expanded === log.id && "expanded")}
+                  aria-expanded={expanded === log.id}
+                  onClick={() =>
+                    setExpanded(expanded === log.id ? null : log.id)
+                  }
                 >
-                  {log.level}
-                </Badge>
-                <span className="log-project">{log.projectName}</span>
-                <span className="log-message">
-                  {log.message || log.path || "Petición sin mensaje"}
-                  {expanded === log.id && (
-                    <small>
-                      {log.path} · HTTP {log.statusCode ?? "—"} · {log.source} ·{" "}
-                      {log.deploymentId}
-                    </small>
-                  )}
-                </span>
-                {log.statusCode && (
-                  <span
+                  <span className="log-time">
+                    {new Intl.DateTimeFormat("es", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      second: "2-digit",
+                      ...(period > 1
+                        ? { day: "2-digit", month: "2-digit" }
+                        : {}),
+                    }).format(new Date(log.timestamp))}
+                  </span>
+                  <Badge
+                    variant="outline"
                     className={cn(
-                      "log-code",
-                      log.statusCode >= 500 && "text-destructive",
+                      ["error", "fatal"].includes(log.level) ||
+                        (log.statusCode ?? 0) >= 500
+                        ? "danger"
+                        : "",
                     )}
                   >
-                    {log.statusCode}
+                    {log.level}
+                  </Badge>
+                  {multiSource && (
+                    <span className="log-provider">
+                      {PROVIDERS[log.provider ?? "vercel"]}
+                    </span>
+                  )}
+                  <span className="log-project">{log.projectName}</span>
+                  <span className="log-message">
+                    {log.message || log.path || "Petición sin mensaje"}
+                    {expanded === log.id && (
+                      <small>
+                        {[
+                          log.path,
+                          log.statusCode && `HTTP ${log.statusCode}`,
+                          log.source,
+                          log.count && `${log.count} eventos`,
+                          log.deploymentId,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </small>
+                    )}
                   </span>
+                  {log.statusCode && (
+                    <span
+                      className={cn(
+                        "log-code",
+                        log.statusCode >= 500 && "text-destructive",
+                      )}
+                    >
+                      {log.statusCode}
+                    </span>
+                  )}
+                  {!log.statusCode && log.count ? (
+                    <span className="log-code">×{log.count}</span>
+                  ) : null}
+                </button>
+                {expanded === log.id && log.url && (
+                  <a
+                    className="text-link log-link"
+                    href={log.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Abrir en {PROVIDERS[log.provider]}
+                    <ExternalLink size={13} />
+                  </a>
                 )}
-              </button>
+              </div>
             ))}
           </div>
         ) : (
@@ -1320,7 +1383,9 @@ function Logs({
               )}
             />
             {isValidating
-              ? "Consultando Vercel…"
+              ? multiSource
+                ? "Consultando fuentes…"
+                : "Consultando Vercel…"
               : data?.mode === "history"
                 ? "Histórico de Neon"
                 : "Lectura en vivo"}
@@ -1331,10 +1396,10 @@ function Logs({
       {data?.issues.length ? (
         <details className="coverage">
           <summary>
-            {data.issues.length} proyectos con lectura parcial o no disponible
+            {data.issues.length} avisos de lectura parcial o no disponible
           </summary>
-          {data.issues.map((i) => (
-            <p key={i.projectId}>
+          {data.issues.map((i, index) => (
+            <p key={index}>
               <strong>
                 {projects.find((p) => p.id === i.projectId)?.name ??
                   i.projectId}
@@ -1397,6 +1462,71 @@ function Settings({ session }: { session: Session }) {
             {session.drains ? "Configurado" : "Opcional"}
           </Badge>
         </div>
+        <div className="setting-row">
+          <span className="connection-icon">
+            <Bug size={19} />
+          </span>
+          <div>
+            <h3>Sentry</h3>
+            <p>
+              Issues sin resolver de la organización, junto a los logs de cada
+              proyecto.
+            </p>
+          </div>
+          <Badge variant="outline">
+            {session.sentry ? "Configurado" : "Opcional"}
+          </Badge>
+        </div>
+        <div className="setting-row">
+          <span className="connection-icon">
+            <Database size={19} />
+          </span>
+          <div>
+            <h3>Supabase</h3>
+            <p>
+              Avisos y errores de Postgres, Auth, API y Edge Functions de las
+              últimas 24 horas.
+            </p>
+          </div>
+          <Badge variant="outline">
+            {session.supabase ? "Configurado" : "Opcional"}
+          </Badge>
+        </div>
+      </section>
+      <section className="panel">
+        <div className="panel-heading">
+          <div>
+            <h2>Conectar Sentry y Supabase</h2>
+            <p>Tokens de solo lectura, guardados en el servidor.</p>
+          </div>
+        </div>
+        <ol className="setup-steps">
+          <li>
+            <strong>Sentry</strong>
+            <p>
+              Crea un token con permisos <code>org:read</code>,{" "}
+              <code>project:read</code> y <code>event:read</code>. Configura{" "}
+              <code>SENTRY_AUTH_TOKEN</code>, <code>SENTRY_ORG</code> y{" "}
+              <code>SENTRY_URL</code> (p. ej. <code>https://de.sentry.io</code>
+              ).
+            </p>
+          </li>
+          <li>
+            <strong>Supabase</strong>
+            <p>
+              Crea un token de acceso personal y guárdalo como{" "}
+              <code>SUPABASE_ACCESS_TOKEN</code>.
+            </p>
+          </li>
+          <li>
+            <strong>Emparejar proyectos</strong>
+            <p>
+              Se emparejan por nombre con los de Vercel. Para el resto usa{" "}
+              <code>SENTRY_PROJECTS</code> y <code>SUPABASE_PROJECTS</code> con
+              pares <code>origen:proyecto-vercel</code> separados por comas.
+            </p>
+          </li>
+        </ol>
       </section>
       <section className="panel">
         <div className="panel-heading">

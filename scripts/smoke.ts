@@ -1,4 +1,6 @@
 import { getDashboard, getDetails, getLiveLogs } from "../src/lib/vercel";
+import { getSentryLogs, sentryConfigured } from "../src/lib/sentry";
+import { getSupabaseLogs, supabaseConfigured } from "../src/lib/supabase";
 const team = process.env.VERCEL_TEAM_ID ?? "";
 async function main() {
   const dashboard = await getDashboard(team, 7);
@@ -34,7 +36,35 @@ async function main() {
       }),
     );
   }
-  if (dashboard.projects.some((p) => p.analyticsError)) process.exitCode = 1;
+  const [sentry, supabase] = await Promise.all([
+    getSentryLogs(dashboard.projects, "", 7, false),
+    getSupabaseLogs(dashboard.projects, "", 1, false),
+  ]);
+  for (const [name, configured, result] of [
+    ["sentry", sentryConfigured(), sentry],
+    ["supabase", supabaseConfigured(), supabase],
+  ] as const)
+    console.log(
+      JSON.stringify({
+        source: name,
+        configured,
+        logs: result.logs.length,
+        unmatched: [
+          ...new Set(
+            result.logs
+              .filter((l) => l.projectId.startsWith(`${name}:`))
+              .map((l) => l.projectName),
+          ),
+        ],
+        coverage: result.issues.map((i) => i.message),
+      }),
+    );
+  if (
+    dashboard.projects.some((p) => p.analyticsError) ||
+    sentry.issues.length ||
+    supabase.issues.length
+  )
+    process.exitCode = 1;
 }
 main().catch((error) => {
   console.error(
