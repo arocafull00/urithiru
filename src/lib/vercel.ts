@@ -1,6 +1,13 @@
 import "server-only";
 import { HttpError } from "./http";
-import { dateRange, mapConcurrent, metrics, trafficSeries } from "./analytics";
+import {
+  dateRange,
+  domainBreakdown,
+  mapConcurrent,
+  metrics,
+  splitHost,
+  trafficSeries,
+} from "./analytics";
 import type {
   Dashboard,
   Details,
@@ -180,7 +187,11 @@ export async function getDetails(
     }),
   );
   return {
-    pages: result[0],
+    pages: result[0].map((page) => {
+      const { host, path } = splitHost(page.label);
+      return host ? { ...page, label: `${host}${path}` } : page;
+    }),
+    domains: domainBreakdown(result[0]),
     referrers: result[1],
     countries: result[2],
     devices: result[3],

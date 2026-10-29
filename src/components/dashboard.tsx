@@ -1103,6 +1103,9 @@ function ProjectDetails({
   return (
     <div className="breakdowns">
       {[
+        ...(data?.domains?.length
+          ? [{ title: "Dominios", rows: data.domains }]
+          : []),
         { title: "Páginas", rows: data?.pages },
         { title: "Fuentes", rows: data?.referrers },
         { title: "Países", rows: data?.countries },

@@ -5,7 +5,40 @@ import {
   metrics,
   trafficSeries,
   mapConcurrent,
+  domainBreakdown,
+  splitHost,
 } from "../src/lib/analytics";
+test("separa el dominio que Landora antepone a la ruta", () => {
+  assert.deepEqual(splitHost("/espinosa-visuals.landora.es/productos"), {
+    host: "espinosa-visuals.landora.es",
+    path: "/productos",
+  });
+  assert.deepEqual(splitHost("/landora.es"), { host: "landora.es", path: "/" });
+  assert.deepEqual(splitHost("/productos"), { host: null, path: "/productos" });
+});
+test("agrupa las páginas por dominio y oculta el panel sin dominios", () => {
+  const row = (label: string, pageviews: number) => ({
+    label,
+    pageviews,
+    visitors: 1,
+  });
+  assert.deepEqual(
+    domainBreakdown([
+      row("/landora.es", 3),
+      row("/a.landora.es/x", 5),
+      row("/landora.es/editor", 4),
+      row("/", 2),
+      row("Others", 1),
+    ]).map((r) => [r.label, r.pageviews]),
+    [
+      ["landora.es", 7],
+      ["a.landora.es", 5],
+      ["Sin dominio", 2],
+      ["Otros", 1],
+    ],
+  );
+  assert.deepEqual(domainBreakdown([row("/", 2), row("Others", 1)]), []);
+});
 test("7 días abarcan siete fechas UTC, incluso junto a cambios de hora", () => {
   const range = dateRange(7, new Date("2026-10-28T18:42:00Z"));
   assert.equal(range.since, "2026-10-22T00:00:00.000Z");

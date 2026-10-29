@@ -26,6 +26,7 @@ export type Dashboard = {
 export type Breakdown = Metrics & { label: string };
 export type Details = {
   pages: Breakdown[];
+  domains: Breakdown[];
   referrers: Breakdown[];
   countries: Breakdown[];
   devices: Breakdown[];
