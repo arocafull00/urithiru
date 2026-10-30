@@ -1,5 +1,11 @@
 export type Period = 1 | 7 | 30;
-export type Section = "overview" | "projects" | "logs" | "errors" | "settings";
+export type Section =
+  | "overview"
+  | "projects"
+  | "users"
+  | "logs"
+  | "errors"
+  | "settings";
 export type Metrics = { pageviews: number; visitors: number };
 export type TrafficPoint = Metrics & { timestamp: string };
 export type Analytics = Metrics & { series: TrafficPoint[] };
@@ -64,4 +70,23 @@ export type Session = {
   drains: boolean;
   sentry: boolean;
   supabase: boolean;
+};
+
+export type RegisteredUser = {
+  id: string;
+  name: string;
+  email: string | null;
+  emailVerified: boolean;
+  createdAt: number;
+  lastSignInAt: number | null;
+};
+export type UsersResult = {
+  users: RegisteredUser[];
+  total: number;
+  newUsers: { day: number; week: number; month: number };
+  filteredTotal: number;
+  page: number;
+  pageSize: number;
+  environment: "production" | "development";
+  fetchedAt: string;
 };

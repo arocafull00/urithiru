@@ -12,9 +12,13 @@ test("la caché no vuelve a notificar al recordar el mismo snapshot y conserva l
       removeItem: (key: string) => storage.delete(key),
     },
   });
-  Object.defineProperty(globalThis, "window", { configurable: true, value: { localStorage: globalThis.localStorage } });
-  const { useDashboard, clearPrivateCache } =
-    await import("../src/stores/dashboard");
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: { localStorage: globalThis.localStorage },
+  });
+  const { useDashboard, clearPrivateCache } = await import(
+    "../src/stores/dashboard"
+  );
   useDashboard.persist.setOptions({
     storage: createJSONStorage(() => ({
       getItem: (key) => storage.get(key) ?? null,
@@ -79,7 +83,36 @@ test("la caché no vuelve a notificar al recordar el mismo snapshot y conserva l
     undefined,
   );
   unsubscribe();
+  const users = {
+    users: [],
+    total: 0,
+    newUsers: { day: 0, week: 0, month: 0 },
+    filteredTotal: 0,
+    page: 0,
+    pageSize: 25,
+    environment: "development" as const,
+    fetchedAt: "2026-10-30",
+  };
+  state.rememberUsers("user1:/api/users", users);
+  const previousUsers =
+    useDashboard.getState().userSnapshots["user1:/api/users"].users;
+  state.rememberUsers("user1:/api/users", {
+    ...users,
+    fetchedAt: "2026-10-31",
+  });
+  assert.equal(
+    useDashboard.getState().userSnapshots["user1:/api/users"].users,
+    previousUsers,
+  );
+  for (let i = 0; i < 6; i++)
+    state.rememberUsers(`user1:/api/users?page=${i}`, users);
+  assert.equal(Object.keys(useDashboard.getState().userSnapshots).length, 4);
+  assert.equal(
+    useDashboard.getState().userSnapshots["other-user:/api/users"],
+    undefined,
+  );
   await clearPrivateCache();
+  assert.deepEqual(useDashboard.getState().userSnapshots, {});
   assert.deepEqual(useDashboard.getState().snapshots, {});
   assert.equal(useDashboard.getState().session, null);
   assert.equal(storage.size, 0);

@@ -36,7 +36,21 @@ Las credenciales de Vercel y Neon nunca se envían al cliente. Toda API privada 
 
 Los visitantes del resumen son la **suma de los visitantes de cada proyecto**, no personas únicas entre sitios. Los cubos del gráfico se agrupan en UTC. Las fechas de los logs se muestran en la zona horaria del dispositivo. El dato de Vercel no implica que una persona esté conectada en ese instante.
 
-## Fuentes y límites
+## Usuarios de Diariamente
+
+La sección **Usuarios** (`/?view=users`) muestra el total de cuentas de Diariamente, las altas en las últimas 24 horas, 7 y 30 días y una lista paginada (25 por página) con nombre, correo principal, fecha de registro, último inicio de sesión y verificación del correo. La búsqueda por nombre o correo y el filtro de fecha se aplican en Clerk a todos los usuarios, no solo a la página visible. Los contadores siempre resumen la instancia completa.
+
+Configura `DIARIAMENTE_CLERK_SECRET_KEY` con una clave de la instancia de Clerk de **Diariamente**, distinta de las claves de acceso de Urithiru. Usa `sk_live_...` para producción o `sk_test_...` para desarrollo; la pantalla indica el entorno y avisa si es desarrollo. La clave solo se usa en el servidor. En Vercel, configura esta variable en Urithiru y vuelve a desplegar. No se reutiliza automáticamente `CLERK_SECRET_KEY`, para evitar mostrar por error los usuarios del panel.
+
+La API `/api/users` exige el mismo permiso de administrador que el resto del panel y no permite modificar cuentas. Se guardan hasta cuatro lecturas por administrador en la caché local, se actualizan en segundo plano cada minuto y se borran al cerrar sesión o perder acceso. Los errores de Clerk no se muestran como un total de cero.
+
+Prueba de lectura real, sin imprimir datos personales ni claves:
+
+```powershell
+node --env-file=.env.local --conditions=react-server --import tsx scripts/users-smoke.ts
+```
+
+## Fuentes de tráfico y límites
 
 Web Analytics usa la API pública de Vercel (`/v1/query/web-analytics/visits/aggregate`). Los proyectos con Analytics desactivado se muestran como tales; una respuesta desconocida o fallida no se sustituye por cero. La ventana consultable depende del plan. Si Vercel rechaza 30 días, el panel conserva ese error por proyecto.
 

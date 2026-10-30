@@ -29,6 +29,7 @@ import {
   Sun,
   Terminal,
   Unplug,
+  Users as UsersIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -66,11 +67,15 @@ const TrafficChart = dynamic(() => import("./traffic-chart"), {
   ssr: false,
   loading: () => <Skeleton className="h-64 w-full" />,
 });
+const Users = dynamic(() => import("./users"), {
+  loading: () => <Skeleton className="h-72 w-full" />,
+});
 const formatNumber = (n: number | null | undefined) =>
   n == null ? "—" : n.toLocaleString("es-ES");
 const navigation = [
   { id: "overview", name: "Vista general", icon: LayoutDashboard },
   { id: "projects", name: "Proyectos", icon: FolderKanban },
+  { id: "users", name: "Usuarios", icon: UsersIcon },
   { id: "logs", name: "Logs", icon: Terminal },
   { id: "errors", name: "Errores", icon: CircleAlert },
   { id: "settings", name: "Configuración", icon: Settings2 },
@@ -384,7 +389,7 @@ function Workspace({
   const snapshotKey = `${session.userId}:${team}:${period}`;
   const snapshot = useDashboard((s) => s.snapshots[snapshotKey]);
   const { data, error, mutate, isValidating } = useSWR<DashboardData>(
-    session.vercel ? [url, session.userId] : null,
+    session.vercel && section !== "users" ? [url, session.userId] : null,
     { fallbackData: snapshot, refreshInterval: 60000, keepPreviousData: false },
   );
   useEffect(() => {
@@ -414,6 +419,7 @@ function Workspace({
       ? "Tráfico y actividad de este proyecto."
       : "Lo que está pasando en todos tus proyectos.",
     projects: "Tu mapa de proyectos, de un vistazo.",
+    users: "Registros y crecimiento de Diariamente.",
     logs: "La actividad de tus aplicaciones, en un mismo lugar.",
     errors: "Detecta dónde hace falta tu atención.",
     settings: "Conexiones, acceso y preferencias de tu espacio.",
@@ -480,7 +486,7 @@ function Workspace({
               <h1>{title}</h1>
               <p>{description}</p>
             </div>
-            {section !== "settings" && (
+            {section !== "settings" && section !== "users" && (
               <Button
                 variant="outline"
                 size="sm"
@@ -508,7 +514,7 @@ function Workspace({
               última información disponible.
             </Notice>
           )}
-          {section !== "settings" && (
+          {section !== "settings" && section !== "users" && (
             <div className="toolbar">
               <div className="flex flex-wrap items-center gap-2">
                 <Select
@@ -581,7 +587,7 @@ function Workspace({
               </div>
             </div>
           )}
-          {error && (
+          {error && section !== "users" && (
             <Notice error>
               {error.message}.{" "}
               {data
@@ -589,7 +595,9 @@ function Workspace({
                 : "No se han podido cargar los proyectos."}
             </Notice>
           )}
-          {!session.vercel && section !== "settings" ? (
+          {section === "users" ? (
+            <Users userId={session.userId} />
+          ) : !session.vercel && section !== "settings" ? (
             <ConnectionEmpty />
           ) : section === "settings" ? (
             <Settings session={session} />
@@ -634,9 +642,11 @@ function Workspace({
           <footer className="page-footer">
             <span>
               <span className="status-dot" />
-              {data
-                ? `Última lectura: ${new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(data.fetchedAt))}`
-                : "Pendiente de conexión"}
+              {section === "users"
+                ? "Usuarios de Diariamente · Clerk"
+                : data
+                  ? `Última lectura: ${new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(data.fetchedAt))}`
+                  : "Pendiente de conexión"}
             </span>
             <span>Urithiru · Espacio personal</span>
           </footer>
@@ -1450,6 +1460,23 @@ function Settings({ session }: { session: Session }) {
             <p>Sesión privada y lista de administradores permitidos.</p>
           </div>
           <Badge variant="outline">Conectado</Badge>
+        </div>
+        <div className="setting-row">
+          <span className="connection-icon">
+            <UsersIcon size={19} />
+          </span>
+          <div>
+            <h3>Usuarios de Diariamente</h3>
+            <p>
+              Consulta sus registros con la clave de su propia instancia de
+              Clerk. Configura <code>DIARIAMENTE_CLERK_SECRET_KEY</code> en el
+              servidor y vuelve a desplegar. Usa una clave de producción para
+              ver usuarios reales.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => navigate("users")}>
+            Ver usuarios
+          </Button>
         </div>
         <div className="setting-row">
           <span className="connection-icon">

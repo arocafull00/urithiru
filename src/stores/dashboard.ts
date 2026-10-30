@@ -1,10 +1,17 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Dashboard, Session, Section, Period } from "@/lib/types";
+import type {
+  Dashboard,
+  Session,
+  Section,
+  Period,
+  UsersResult,
+} from "@/lib/types";
 type State = {
   session: Session | null;
   snapshots: Record<string, Dashboard>;
+  userSnapshots: Record<string, UsersResult>;
   section: Section;
   period: Period;
   team: string;
@@ -12,15 +19,19 @@ type State = {
   search: string;
   favorites: string[];
   patch: (
-    state: Partial<Omit<State, "patch" | "remember" | "clear" | "favorite">>,
+    state: Partial<
+      Omit<State, "patch" | "remember" | "rememberUsers" | "clear" | "favorite">
+    >,
   ) => void;
   remember: (key: string, data: Dashboard) => void;
+  rememberUsers: (key: string, data: UsersResult) => void;
   clear: () => void;
   favorite: (id: string) => void;
 };
 const initial = {
   session: null,
   snapshots: {},
+  userSnapshots: {},
   section: "overview" as Section,
   period: 7 as Period,
   team: "",
@@ -33,6 +44,35 @@ export const useDashboard = create<State>()(
     (set) => ({
       ...initial,
       patch: (state) => set(state),
+      rememberUsers: (key, data) =>
+        set((state) => {
+          const previous = state.userSnapshots[key];
+          if (
+            previous === data ||
+            JSON.stringify(previous) === JSON.stringify(data)
+          )
+            return state;
+          const oldUsers = new Map(
+            previous?.users.map((user) => [user.id, user]),
+          );
+          const users =
+            JSON.stringify(previous?.users) === JSON.stringify(data.users)
+              ? previous!.users
+              : data.users.map((user) => {
+                  const old = oldUsers.get(user.id);
+                  return old && JSON.stringify(old) === JSON.stringify(user)
+                    ? old
+                    : user;
+                });
+          return {
+            userSnapshots: Object.fromEntries([
+              ...Object.entries(state.userSnapshots)
+                .filter(([k]) => k !== key)
+                .slice(-3),
+              [key, { ...data, users }],
+            ]),
+          };
+        }),
       remember: (key, data) =>
         set((state) => {
           const previous = state.snapshots[key];
@@ -69,6 +109,7 @@ export const useDashboard = create<State>()(
       partialize: (state) => ({
         session: state.session,
         snapshots: state.snapshots,
+        userSnapshots: state.userSnapshots,
         section: state.section,
         period: state.period,
         team: state.team,
