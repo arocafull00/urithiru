@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { UserBillingCell } from "./user-billing";
+import { UserActionsCell, UserPlanCell } from "./user-billing";
 import { useDashboard } from "@/stores/dashboard";
 import type { DiariamenteUser, UsersResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -71,7 +71,10 @@ const UserRow = memo(function UserRow({
         </Badge>
       </td>
       <td>
-        <UserBillingCell user={user} onUpdated={onUpdated} />
+        <UserPlanCell billing={user.billing} />
+      </td>
+      <td className="users-actions">
+        <UserActionsCell user={user} onUpdated={onUpdated} />
       </td>
     </tr>
   );
@@ -298,13 +301,16 @@ export default function Users({ userId }: { userId: string }) {
                 <th scope="col">Último acceso</th>
                 <th scope="col">Correo</th>
                 <th scope="col">Plan</th>
+                <th scope="col" className="users-actions">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody>
               {!current && !error
                 ? Array.from({ length: 5 }, (_, index) => (
                     <tr key={index}>
-                      {Array.from({ length: 5 }, (_, cell) => (
+                      {Array.from({ length: 6 }, (_, cell) => (
                         <td key={cell}>
                           <Skeleton className="h-5 w-24" />
                         </td>
@@ -316,7 +322,7 @@ export default function Users({ userId }: { userId: string }) {
                   ))}
               {current && current.users.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="small-empty">
+                  <td colSpan={6} className="small-empty">
                     {filters.query
                       ? "No hay usuarios que coincidan con esta búsqueda."
                       : filters.period
@@ -329,7 +335,7 @@ export default function Users({ userId }: { userId: string }) {
               )}
               {!current && error && (
                 <tr>
-                  <td colSpan={5} className="small-empty">
+                  <td colSpan={6} className="small-empty">
                     No se ha podido cargar la lista de usuarios.
                   </td>
                 </tr>

@@ -1173,6 +1173,11 @@ tbody tr:hover {
 .users-panel .project-title small {
   max-width: 300px;
 }
+.users-actions {
+  text-align: right;
+  width: 1%;
+  white-space: nowrap;
+}
 .users-pagination {
   display: flex;
   justify-content: space-between;

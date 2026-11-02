@@ -48,7 +48,31 @@ async function sendUpdate(id: string, update: BillingUpdate) {
   );
 }
 
-export const UserBillingCell = memo(function UserBillingCell({
+export const UserPlanCell = memo(function UserPlanCell({
+  billing,
+}: {
+  billing: UserBilling | null;
+}) {
+  if (!billing) return <span className="text-muted-foreground">—</span>;
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <Badge variant={billing.access === "expired" ? "destructive" : "outline"}>
+        {accessLabel(billing)}
+      </Badge>
+      {billing.clinic && (
+        <small className="text-muted-foreground">
+          {billing.clinic.monthlyPriceCents === null
+            ? "Sin precio"
+            : `${euros(billing.clinic.monthlyPriceCents)}/mes`}{" "}
+          · {billing.clinic.psychologistCount}{" "}
+          {billing.clinic.psychologistCount === 1 ? "psicólogo" : "psicólogos"}
+        </small>
+      )}
+    </div>
+  );
+});
+
+export const UserActionsCell = memo(function UserActionsCell({
   user,
   onUpdated,
 }: {
@@ -60,7 +84,8 @@ export const UserBillingCell = memo(function UserBillingCell({
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
   const { billing } = user;
-  if (!billing) return <span className="text-muted-foreground">—</span>;
+  if (!billing || (billing.role !== "psychologist" && !billing.clinic))
+    return <span className="text-muted-foreground">—</span>;
 
   async function run(update: BillingUpdate) {
     setPending(true);
@@ -77,24 +102,10 @@ export const UserBillingCell = memo(function UserBillingCell({
   const validPrice = Number.isSafeInteger(cents) && cents >= 100;
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={billing.access === "expired" ? "destructive" : "outline"}>
-          {accessLabel(billing)}
-        </Badge>
-        {billing.clinic && (
-          <small className="text-muted-foreground">
-            {billing.clinic.monthlyPriceCents === null
-              ? "Sin precio"
-              : `${euros(billing.clinic.monthlyPriceCents)}/mes`}{" "}
-            · {billing.clinic.psychologistCount}{" "}
-            {billing.clinic.psychologistCount === 1 ? "psicólogo" : "psicólogos"}
-          </small>
-        )}
-      </div>
+    <div className="flex flex-col items-end gap-2">
       {billing.role === "psychologist" &&
         (confirming ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button
               size="xs"
               disabled={pending}
@@ -117,7 +128,6 @@ export const UserBillingCell = memo(function UserBillingCell({
           <Button
             size="xs"
             variant="outline"
-            className="self-start"
             onClick={() => setConfirming(true)}
           >
             {billing.lifetimeAccess
@@ -127,7 +137,7 @@ export const UserBillingCell = memo(function UserBillingCell({
         ))}
       {billing.clinic && (
         <form
-          className="flex flex-wrap items-center gap-2"
+          className="flex flex-wrap items-center justify-end gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             if (validPrice)
