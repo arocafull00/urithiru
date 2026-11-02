@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { listTeams } from "@/lib/vercel";
 import { errorResponse, json } from "@/lib/http";
+import { diariamenteBillingConfigured } from "@/lib/diariamente-billing";
 import { sentryConfigured } from "@/lib/sentry";
 import { supabaseConfigured } from "@/lib/supabase";
 export async function GET() {
@@ -18,6 +19,7 @@ export async function GET() {
       ),
       sentry: sentryConfigured(),
       supabase: supabaseConfigured(),
+      diariamenteBilling: diariamenteBillingConfigured(),
     });
   } catch (error) {
     return errorResponse(error);

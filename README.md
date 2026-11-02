@@ -42,13 +42,22 @@ La sección **Usuarios** (`/?view=users`) muestra el total de cuentas de Diariam
 
 Configura `DIARIAMENTE_CLERK_SECRET_KEY` con una clave de la instancia de Clerk de **Diariamente**, distinta de las claves de acceso de Urithiru. Usa `sk_live_...` para producción o `sk_test_...` para desarrollo; la pantalla indica el entorno y avisa si es desarrollo. La clave solo se usa en el servidor. En Vercel, configura esta variable en Urithiru y vuelve a desplegar. No se reutiliza automáticamente `CLERK_SECRET_KEY`, para evitar mostrar por error los usuarios del panel.
 
-La API `/api/users` exige el mismo permiso de administrador que el resto del panel y no permite modificar cuentas. Se guardan hasta cuatro lecturas por administrador en la caché local, se actualizan en segundo plano cada minuto y se borran al cerrar sesión o perder acceso. Los errores de Clerk no se muestran como un total de cero.
+La API `/api/users` exige el mismo permiso de administrador que el resto del panel y no modifica cuentas de Clerk. Se guardan hasta cuatro lecturas por administrador en la caché local, se actualizan en segundo plano cada minuto y se borran al cerrar sesión o perder acceso. Los errores de Clerk no se muestran como un total de cero.
 
 Prueba de lectura real, sin imprimir datos personales ni claves:
 
 ```powershell
 node --env-file=.env.local --conditions=react-server --import tsx scripts/users-smoke.ts
 ```
+
+### Planes y facturación
+
+La columna **Plan** muestra el acceso de cada usuario en Diariamente: paciente, prueba (con fecha de fin), suscrito, pago pendiente, de por vida, cubierto por su clínica, precio pendiente o caducado. Desde la misma fila se puede:
+
+- **Dar o quitar acceso de por vida** a un psicólogo, con confirmación. Si tenía una suscripción, se cancela al final del periodo.
+- **Fijar el precio mensual de una clínica** en euros. Diariamente crea el precio en Stripe; si la clínica ya estaba suscrita, el nuevo importe se aplica en la siguiente factura.
+
+Estos datos no salen de Clerk: Urithiru llama a la API de administración de Diariamente (`/api/admin/billing`) con `DIARIAMENTE_API_URL` y el secreto compartido `DIARIAMENTE_ADMIN_API_SECRET`, que debe coincidir con `ADMIN_API_SECRET` en Diariamente. Las operaciones las valida y audita Diariamente con el correo del administrador. Si la API no responde, la lista de usuarios se sigue mostrando con un aviso.
 
 ## Fuentes de tráfico y límites
 

@@ -70,6 +70,7 @@ export type Session = {
   drains: boolean;
   sentry: boolean;
   supabase: boolean;
+  diariamenteBilling: boolean;
 };
 
 export type RegisteredUser = {
@@ -80,8 +81,35 @@ export type RegisteredUser = {
   createdAt: number;
   lastSignInAt: number | null;
 };
+export type BillingAccess =
+  | "free"
+  | "lifetime"
+  | "clinic"
+  | "subscribed"
+  | "trial"
+  | "pricing_pending"
+  | "expired";
+export type UserBilling = {
+  id: string;
+  role: "patient" | "psychologist" | "clinic" | "admin" | null;
+  access: BillingAccess;
+  lifetimeAccess: boolean;
+  trialEndsAt: string | null;
+  subscriptionStatus: string | null;
+  clinic: {
+    id: string;
+    name: string;
+    monthlyPriceCents: number | null;
+    psychologistCount: number;
+  } | null;
+};
+export type BillingUpdate =
+  | { action: "lifetime"; enabled: boolean }
+  | { action: "clinic-price"; monthlyPriceCents: number };
+export type DiariamenteUser = RegisteredUser & { billing: UserBilling | null };
 export type UsersResult = {
-  users: RegisteredUser[];
+  users: DiariamenteUser[];
+  billing: "ok" | "unconfigured" | "error";
   total: number;
   newUsers: { day: number; week: number; month: number };
   filteredTotal: number;

@@ -85,6 +85,7 @@ test("la caché no vuelve a notificar al recordar el mismo snapshot y conserva l
   unsubscribe();
   const users = {
     users: [],
+    billing: "ok" as const,
     total: 0,
     newUsers: { day: 0, week: 0, month: 0 },
     filteredTotal: 0,

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import {
   CalendarDays,
@@ -21,8 +21,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { UserBillingCell } from "./user-billing";
 import { useDashboard } from "@/stores/dashboard";
-import type { RegisteredUser, UsersResult } from "@/lib/types";
+import type { DiariamenteUser, UsersResult } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const number = (value: number | undefined) =>
@@ -34,7 +35,13 @@ const date = (value: number | null) =>
         dateStyle: "medium",
         timeStyle: "short",
       });
-const UserRow = memo(function UserRow({ user }: { user: RegisteredUser }) {
+const UserRow = memo(function UserRow({
+  user,
+  onUpdated,
+}: {
+  user: DiariamenteUser;
+  onUpdated: () => void;
+}) {
   return (
     <tr>
       <td>
@@ -62,6 +69,9 @@ const UserRow = memo(function UserRow({ user }: { user: RegisteredUser }) {
               ? "Verificado"
               : "Sin verificar"}
         </Badge>
+      </td>
+      <td>
+        <UserBillingCell user={user} onUpdated={onUpdated} />
       </td>
     </tr>
   );
@@ -108,6 +118,7 @@ export default function Users({ userId }: { userId: string }) {
     if (data) useDashboard.getState().rememberUsers(key, data);
   }, [data, key]);
   const current = snapshot ?? data;
+  const refresh = useCallback(() => void mutate(), [mutate]);
   const summary = current ?? lastSnapshot;
   const pages = Math.max(
     1,
@@ -159,6 +170,18 @@ export default function Users({ userId }: { userId: string }) {
           >
             Reintentar
           </Button>
+        </div>
+      )}
+      {current?.billing === "error" && (
+        <div className="notice notice-error" role="alert">
+          No se ha podido consultar la facturación en Diariamente. Los planes
+          aparecerán cuando vuelva a responder.
+        </div>
+      )}
+      {current?.billing === "unconfigured" && (
+        <div className="notice" role="status">
+          Configura DIARIAMENTE_API_URL y DIARIAMENTE_ADMIN_API_SECRET para ver
+          y gestionar los planes de cada usuario.
         </div>
       )}
       {summary?.environment === "development" && (
@@ -274,13 +297,14 @@ export default function Users({ userId }: { userId: string }) {
                 <th scope="col">Fecha de registro</th>
                 <th scope="col">Último acceso</th>
                 <th scope="col">Correo</th>
+                <th scope="col">Plan</th>
               </tr>
             </thead>
             <tbody>
               {!current && !error
                 ? Array.from({ length: 5 }, (_, index) => (
                     <tr key={index}>
-                      {Array.from({ length: 4 }, (_, cell) => (
+                      {Array.from({ length: 5 }, (_, cell) => (
                         <td key={cell}>
                           <Skeleton className="h-5 w-24" />
                         </td>
@@ -288,11 +312,11 @@ export default function Users({ userId }: { userId: string }) {
                     </tr>
                   ))
                 : current?.users.map((user) => (
-                    <UserRow key={user.id} user={user} />
+                    <UserRow key={user.id} user={user} onUpdated={refresh} />
                   ))}
               {current && current.users.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="small-empty">
+                  <td colSpan={5} className="small-empty">
                     {filters.query
                       ? "No hay usuarios que coincidan con esta búsqueda."
                       : filters.period
@@ -305,7 +329,7 @@ export default function Users({ userId }: { userId: string }) {
               )}
               {!current && error && (
                 <tr>
-                  <td colSpan={4} className="small-empty">
+                  <td colSpan={5} className="small-empty">
                     No se ha podido cargar la lista de usuarios.
                   </td>
                 </tr>

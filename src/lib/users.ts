@@ -1,5 +1,9 @@
 import "server-only";
 import { createClerkClient } from "@clerk/backend";
+import {
+  diariamenteBillingConfigured,
+  getUsersBilling,
+} from "./diariamente-billing";
 import { HttpError } from "./http";
 import { registeredUser, USERS_PAGE_SIZE, usersQuery } from "./user-data";
 import type { UsersResult } from "./types";
@@ -22,13 +26,19 @@ export async function getUsers(
     ...(period ? { createdAtAfter: now - period * 86400000 } : {}),
   };
   try {
-    const [list, total, day, week, month] = await Promise.all([
-      client.users.getUserList({
-        ...listFilters,
-        orderBy: "-created_at",
-        limit: USERS_PAGE_SIZE,
-        offset: page * USERS_PAGE_SIZE,
-      }),
+    const pageList = client.users.getUserList({
+      ...listFilters,
+      orderBy: "-created_at",
+      limit: USERS_PAGE_SIZE,
+      offset: page * USERS_PAGE_SIZE,
+    });
+    const pageBilling = diariamenteBillingConfigured()
+      ? pageList
+          .then((result) => getUsersBilling(result.data.map((user) => user.id)))
+          .catch(() => null)
+      : Promise.resolve(undefined);
+    const [list, total, day, week, month, billing] = await Promise.all([
+      pageList,
       client.users.getCount(),
       client.users.getUserList({ limit: 1, createdAtAfter: now - 86400000 }),
       client.users.getUserList({
@@ -39,9 +49,15 @@ export async function getUsers(
         limit: 1,
         createdAtAfter: now - 30 * 86400000,
       }),
+      pageBilling,
     ]);
     return {
-      users: list.data.map(registeredUser),
+      users: list.data.map((user) => ({
+        ...registeredUser(user),
+        billing: billing?.get(user.id) ?? null,
+      })),
+      billing:
+        billing === undefined ? "unconfigured" : billing ? "ok" : "error",
       total,
       newUsers: {
         day: day.totalCount,

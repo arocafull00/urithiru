@@ -1480,6 +1480,23 @@ function Settings({ session }: { session: Session }) {
         </div>
         <div className="setting-row">
           <span className="connection-icon">
+            <UsersIcon size={19} />
+          </span>
+          <div>
+            <h3>Facturación de Diariamente</h3>
+            <p>
+              Muestra el plan de cada usuario y permite dar acceso de por vida o
+              fijar el precio de una clínica. Configura{" "}
+              <code>DIARIAMENTE_API_URL</code> y{" "}
+              <code>DIARIAMENTE_ADMIN_API_SECRET</code> en el servidor.
+            </p>
+          </div>
+          <Badge variant="outline">
+            {session.diariamenteBilling ? "Configurado" : "Opcional"}
+          </Badge>
+        </div>
+        <div className="setting-row">
+          <span className="connection-icon">
             <Terminal size={19} />
           </span>
           <div>
