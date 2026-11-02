@@ -1,9 +1,21 @@
 import "server-only";
 import { parseProjectMap, selectOwners, sentryLog } from "./sources";
 import type { LogEntry, LogResult, Period, Project } from "./types";
+import { HttpError } from "./http";
 
 export const sentryConfigured = () =>
   Boolean(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG);
+
+export async function getSentryEvent(issueId: string) {
+  if (!/^\d+$/.test(issueId))
+    throw new HttpError(400, "Issue de Sentry no válido.");
+  if (!sentryConfigured())
+    throw new HttpError(503, "Sentry no está configurado.");
+  const org = encodeURIComponent(process.env.SENTRY_ORG!);
+  return sentryFetch(
+    `/api/0/organizations/${org}/issues/${issueId}/events/latest/`,
+  );
+}
 
 async function sentryFetch(path: string, params: Record<string, string> = {}) {
   const base = process.env.SENTRY_URL || "https://sentry.io";

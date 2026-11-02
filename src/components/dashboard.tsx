@@ -48,6 +48,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CopyLogButton } from "@/components/copy-log-button";
 import { useDashboard, clearPrivateCache } from "@/stores/dashboard";
 import type {
   Dashboard as DashboardData,
@@ -414,16 +415,6 @@ function Workspace({
     section === "overview" && selected
       ? selected.name
       : navigation.find((n) => n.id === section)?.name;
-  const description = {
-    overview: selected
-      ? "Tráfico y actividad de este proyecto."
-      : "Lo que está pasando en todos tus proyectos.",
-    projects: "Tu mapa de proyectos, de un vistazo.",
-    users: "Registros y crecimiento de Diariamente.",
-    logs: "La actividad de tus aplicaciones, en un mismo lugar.",
-    errors: "Detecta dónde hace falta tu atención.",
-    settings: "Conexiones, acceso y preferencias de tu espacio.",
-  }[section];
   return (
     <div className="app-shell">
       <aside className="desktop-sidebar">
@@ -481,33 +472,7 @@ function Workspace({
           </div>
         </header>
         <main id="main-content">
-          <div className="page-heading">
-            <div>
-              <h1>{title}</h1>
-              <p>{description}</p>
-            </div>
-            {section !== "settings" && section !== "users" && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  void mutate();
-                  void mutateAll(
-                    (key) =>
-                      Array.isArray(key) &&
-                      String(key[0]).startsWith("/api/logs"),
-                  );
-                }}
-                disabled={isValidating}
-              >
-                <RefreshCw
-                  size={14}
-                  className={cn(isValidating && "animate-spin")}
-                />
-                {isValidating ? "Actualizando" : "Actualizar"}
-              </Button>
-            )}
-          </div>
+          <h1 className="sr-only">{title}</h1>
           {sessionError && (
             <Notice error>
               La sesión no se ha podido verificar: {sessionError}. Mostrando la
@@ -569,21 +534,42 @@ function Workspace({
                   </SelectContent>
                 </Select>
               </div>
-              <div
-                className="period-switch"
-                role="group"
-                aria-label="Periodo de analytics"
-              >
-                {([1, 7, 30] as Period[]).map((p) => (
-                  <button
-                    key={p}
-                    aria-pressed={period === p}
-                    className={cn(period === p && "selected")}
-                    onClick={() => useDashboard.getState().patch({ period: p })}
-                  >
-                    {p === 1 ? "24 horas" : `${p} días`}
-                  </button>
-                ))}
+              <div className="flex flex-wrap items-center gap-2">
+                <div
+                  className="period-switch"
+                  role="group"
+                  aria-label="Periodo de analytics"
+                >
+                  {([1, 7, 30] as Period[]).map((p) => (
+                    <button
+                      key={p}
+                      aria-pressed={period === p}
+                      className={cn(period === p && "selected")}
+                      onClick={() => useDashboard.getState().patch({ period: p })}
+                    >
+                      {p === 1 ? "24 horas" : `${p} días`}
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void mutate();
+                    void mutateAll(
+                      (key) =>
+                        Array.isArray(key) &&
+                        String(key[0]).startsWith("/api/logs"),
+                    );
+                  }}
+                  disabled={isValidating}
+                >
+                  <RefreshCw
+                    size={14}
+                    className={cn(isValidating && "animate-spin")}
+                  />
+                  {isValidating ? "Actualizando" : "Actualizar"}
+                </Button>
               </div>
             </div>
           )}
@@ -1226,7 +1212,7 @@ function Logs({
       )}
       <section className="panel logs-panel">
         {!compact && (
-          <div className="table-toolbar">
+          <div className="table-toolbar logs-toolbar">
             <div className="search-field">
               <Search size={15} />
               <Input
@@ -1239,7 +1225,7 @@ function Logs({
               />
             </div>
             <Select value={level} onValueChange={setLevel}>
-              <SelectTrigger className="w-36" aria-label="Filtrar nivel de log">
+              <SelectTrigger aria-label="Filtrar nivel de log">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1257,7 +1243,7 @@ function Logs({
                 value={provider}
                 onValueChange={(v) => setProvider(v as typeof provider)}
               >
-                <SelectTrigger className="w-36" aria-label="Filtrar fuente">
+                <SelectTrigger aria-label="Filtrar fuente">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1284,70 +1270,73 @@ function Logs({
           <div className="log-list">
             {logs.slice(0, compact ? 5 : 1000).map((log) => (
               <div key={`${log.projectId}:${log.id}`}>
-                <button
-                  className={cn("log-row", expanded === log.id && "expanded")}
-                  aria-expanded={expanded === log.id}
-                  onClick={() =>
-                    setExpanded(expanded === log.id ? null : log.id)
-                  }
-                >
-                  <span className="log-time">
-                    {new Intl.DateTimeFormat("es", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      second: "2-digit",
-                      ...(period > 1
-                        ? { day: "2-digit", month: "2-digit" }
-                        : {}),
-                    }).format(new Date(log.timestamp))}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      ["error", "fatal"].includes(log.level) ||
-                        (log.statusCode ?? 0) >= 500
-                        ? "danger"
-                        : "",
-                    )}
+                <div className="log-row-container">
+                  <button
+                    className={cn("log-row", expanded === log.id && "expanded")}
+                    aria-expanded={expanded === log.id}
+                    onClick={() =>
+                      setExpanded(expanded === log.id ? null : log.id)
+                    }
                   >
-                    {log.level}
-                  </Badge>
-                  {multiSource && (
-                    <span className="log-provider">
-                      {PROVIDERS[log.provider ?? "vercel"]}
+                    <span className="log-time">
+                      {new Intl.DateTimeFormat("es", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        second: "2-digit",
+                        ...(period > 1
+                          ? { day: "2-digit", month: "2-digit" }
+                          : {}),
+                      }).format(new Date(log.timestamp))}
                     </span>
-                  )}
-                  <span className="log-project">{log.projectName}</span>
-                  <span className="log-message">
-                    {log.message || log.path || "Petición sin mensaje"}
-                    {expanded === log.id && (
-                      <small>
-                        {[
-                          log.path,
-                          log.statusCode && `HTTP ${log.statusCode}`,
-                          log.source,
-                          log.count && `${log.count} eventos`,
-                          log.deploymentId,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </small>
-                    )}
-                  </span>
-                  {log.statusCode && (
-                    <span
+                    <Badge
+                      variant="outline"
                       className={cn(
-                        "log-code",
-                        log.statusCode >= 500 && "text-destructive",
+                        ["error", "fatal"].includes(log.level) ||
+                          (log.statusCode ?? 0) >= 500
+                          ? "danger"
+                          : "",
                       )}
                     >
-                      {log.statusCode}
+                      {log.level}
+                    </Badge>
+                    {multiSource && (
+                      <span className="log-provider">
+                        {PROVIDERS[log.provider ?? "vercel"]}
+                      </span>
+                    )}
+                    <span className="log-project">{log.projectName}</span>
+                    <span className="log-message">
+                      {log.message || log.path || "Petición sin mensaje"}
+                      {expanded === log.id && (
+                        <small>
+                          {[
+                            log.path,
+                            log.statusCode && `HTTP ${log.statusCode}`,
+                            log.source,
+                            log.count && `${log.count} eventos`,
+                            log.deploymentId,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </small>
+                      )}
                     </span>
-                  )}
-                  {!log.statusCode && log.count ? (
-                    <span className="log-code">×{log.count}</span>
-                  ) : null}
-                </button>
+                    {log.statusCode && (
+                      <span
+                        className={cn(
+                          "log-code",
+                          log.statusCode >= 500 && "text-destructive",
+                        )}
+                      >
+                        {log.statusCode}
+                      </span>
+                    )}
+                    {!log.statusCode && log.count ? (
+                      <span className="log-code">×{log.count}</span>
+                    ) : null}
+                  </button>
+                  <CopyLogButton log={log} />
+                </div>
                 {expanded === log.id && log.url && (
                   <a
                     className="text-link log-link"
