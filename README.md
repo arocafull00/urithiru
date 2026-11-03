@@ -36,13 +36,15 @@ Las credenciales de Vercel y Neon nunca se envían al cliente. Toda API privada 
 
 Los visitantes del resumen son la **suma de los visitantes de cada proyecto**, no personas únicas entre sitios. Los cubos del gráfico se agrupan en UTC. Las fechas de los logs se muestran en la zona horaria del dispositivo. El dato de Vercel no implica que una persona esté conectada en ese instante.
 
-## Usuarios de Diariamente
+## Usuarios de los proyectos con Clerk
 
-La sección **Usuarios** (`/?view=users`) muestra el total de cuentas de Diariamente, las altas en las últimas 24 horas, 7 y 30 días y una lista paginada (25 por página) con nombre, correo principal, fecha de registro, último inicio de sesión y verificación del correo. La búsqueda por nombre o correo y el filtro de fecha se aplican en Clerk a todos los usuarios, no solo a la página visible. Los contadores siempre resumen la instancia completa.
+La sección **Usuarios** (`/?view=users`) permite elegir equipo y proyecto. Detecta los proyectos desplegados en Vercel que tienen `CLERK_SECRET_KEY` en su entorno de producción. Muestra el total de cuentas, las altas en las últimas 24 horas, 7 y 30 días y una lista paginada (25 por página) con nombre, correo principal, fecha de registro, último inicio de sesión y verificación del correo. La búsqueda y el filtro de fecha se aplican en Clerk a todos los usuarios; los contadores resumen la instancia completa del proyecto seleccionado.
 
-Configura `DIARIAMENTE_CLERK_SECRET_KEY` con una clave de la instancia de Clerk de **Diariamente**, distinta de las claves de acceso de Urithiru. Usa `sk_live_...` para producción o `sk_test_...` para desarrollo; la pantalla indica el entorno y avisa si es desarrollo. La clave solo se usa en el servidor. En Vercel, configura esta variable en Urithiru y vuelve a desplegar. No se reutiliza automáticamente `CLERK_SECRET_KEY`, para evitar mostrar por error los usuarios del panel.
+Solo se consultan instancias **de producción** (`sk_live_...`). Las variables Secret/Sensitive de Vercel son de solo escritura: permiten detectar Clerk pero no recuperar la clave ni verificar su entorno. Conecta esos proyectos configurando en Urithiru `REPLAY_CLERK_SECRET_KEY`, `INVOICER_CLERK_SECRET_KEY`, `TAREAS_CLERK_SECRET_KEY` o, en general, `NOMBRE_DEL_PROYECTO_CLERK_SECRET_KEY` (mayúsculas y guiones sustituidos por guiones bajos). DiariaMente conserva `DIARIAMENTE_CLERK_SECRET_KEY`. Las conexiones explícitas también permiten consultar proyectos alojados fuera de Vercel. Una clave de desarrollo nunca permite consultar usuarios desde esta sección.
 
-La API `/api/users` exige el mismo permiso de administrador que el resto del panel y no modifica cuentas de Clerk. Se guardan hasta cuatro lecturas por administrador en la caché local, se actualizan en segundo plano cada minuto y se borran al cerrar sesión o perder acceso. Los errores de Clerk no se muestran como un total de cero.
+La detección requiere `VERCEL_TOKEN` con acceso de lectura a los proyectos y sus variables. Se consulta con concurrencia limitada y caché de un minuto; los fallos parciales se muestran sin ocultar las conexiones que funcionan. Las claves solo se usan en el servidor y no se reutiliza la `CLERK_SECRET_KEY` de autenticación de Urithiru. En Vercel, configura las conexiones en el proyecto Urithiru y vuelve a desplegar.
+
+Las API `/api/users/projects` y `/api/users?project=ID&team=ID` exigen el mismo permiso de administrador que el resto del panel y no modifican cuentas de Clerk. El catálogo y hasta veinte lecturas se guardan por administrador, equipo y proyecto en la caché local; se actualizan en segundo plano cada minuto y se borran al cerrar sesión o perder acceso. Cambiar de proyecto reinicia los filtros y nunca muestra usuarios ni contadores de otro proyecto. Los errores de Clerk no se muestran como un total de cero.
 
 Prueba de lectura real, sin imprimir datos personales ni claves:
 

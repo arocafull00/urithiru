@@ -1,11 +1,6 @@
 export type Period = 1 | 7 | 30;
 export type Section =
-  | "overview"
-  | "projects"
-  | "users"
-  | "logs"
-  | "errors"
-  | "settings";
+  "overview" | "projects" | "users" | "logs" | "errors" | "settings";
 export type Metrics = { pageviews: number; visitors: number };
 export type TrafficPoint = Metrics & { timestamp: string };
 export type Analytics = Metrics & { series: TrafficPoint[] };
@@ -87,6 +82,7 @@ export type BillingAccess =
   | "clinic"
   | "subscribed"
   | "trial"
+  | "trial_available"
   | "pricing_pending"
   | "expired";
 export type UserBilling = {
@@ -107,9 +103,22 @@ export type BillingUpdate =
   | { action: "lifetime"; enabled: boolean }
   | { action: "clinic-price"; monthlyPriceCents: number };
 export type DiariamenteUser = RegisteredUser & { billing: UserBilling | null };
+export type ClerkProject = {
+  id: string;
+  name: string;
+  domain: string | null;
+  connected: boolean;
+  billing: boolean;
+  secretKeyVariable: string;
+};
+export type ClerkProjectsResult = {
+  projects: ClerkProject[];
+  issues: string[];
+};
 export type UsersResult = {
+  project: ClerkProject;
   users: DiariamenteUser[];
-  billing: "ok" | "unconfigured" | "error";
+  billing: "ok" | "unconfigured" | "error" | "unsupported";
   total: number;
   newUsers: { day: number; week: number; month: number };
   filteredTotal: number;

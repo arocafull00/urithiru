@@ -12,6 +12,7 @@ const userBillingSchema = z.object({
     "clinic",
     "subscribed",
     "trial",
+    "trial_available",
     "pricing_pending",
     "expired",
   ]),

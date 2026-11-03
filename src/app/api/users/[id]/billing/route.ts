@@ -5,6 +5,8 @@ import {
   updateUserBilling,
 } from "@/lib/diariamente-billing";
 import { errorResponse, HttpError, json } from "@/lib/http";
+import { getClerkConnection } from "@/lib/clerk-projects";
+import { usersSourceQuery } from "@/lib/user-data";
 
 export async function PATCH(
   request: Request,
@@ -12,6 +14,13 @@ export async function PATCH(
 ) {
   try {
     await requireAdmin();
+    const { teamId, projectId } = usersSourceQuery(request);
+    const { project } = await getClerkConnection(teamId, projectId);
+    if (!project.billing)
+      throw new HttpError(
+        400,
+        "La gestión de planes solo está disponible para DiariaMente.",
+      );
     const { id } = await params;
     if (!/^user_[A-Za-z0-9]+$/.test(id))
       throw new HttpError(400, "Usuario no válido.");

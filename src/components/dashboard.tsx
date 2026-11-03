@@ -582,7 +582,7 @@ function Workspace({
             </Notice>
           )}
           {section === "users" ? (
-            <Users userId={session.userId} />
+            <Users userId={session.userId} teams={session.teams} />
           ) : !session.vercel && section !== "settings" ? (
             <ConnectionEmpty />
           ) : section === "settings" ? (
@@ -629,7 +629,7 @@ function Workspace({
             <span>
               <span className="status-dot" />
               {section === "users"
-                ? "Usuarios de Diariamente · Clerk"
+                ? "Usuarios · Clerk de producción"
                 : data
                   ? `Última lectura: ${new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(data.fetchedAt))}`
                   : "Pendiente de conexión"}
@@ -1455,12 +1455,11 @@ function Settings({ session }: { session: Session }) {
             <UsersIcon size={19} />
           </span>
           <div>
-            <h3>Usuarios de Diariamente</h3>
+            <h3>Usuarios de tus proyectos</h3>
             <p>
-              Consulta sus registros con la clave de su propia instancia de
-              Clerk. Configura <code>DIARIAMENTE_CLERK_SECRET_KEY</code> en el
-              servidor y vuelve a desplegar. Usa una clave de producción para
-              ver usuarios reales.
+              Detecta los proyectos con Clerk en producción desde Vercel y
+              selecciona cuál consultar en Usuarios. Las claves protegidas
+              necesitan una conexión propia en el servidor de Urithiru.
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => navigate("users")}>

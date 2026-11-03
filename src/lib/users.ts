@@ -5,19 +5,18 @@ import {
   getUsersBilling,
 } from "./diariamente-billing";
 import { HttpError } from "./http";
+import { getClerkConnection } from "./clerk-projects";
 import { registeredUser, USERS_PAGE_SIZE, usersQuery } from "./user-data";
 import type { UsersResult } from "./types";
 
 export async function getUsers(
   filters: ReturnType<typeof usersQuery>,
+  source = { teamId: process.env.VERCEL_TEAM_ID ?? "", projectId: "" },
 ): Promise<UsersResult> {
-  // This is deliberately separate from Urithiru's own authentication instance.
-  const secretKey = process.env.DIARIAMENTE_CLERK_SECRET_KEY;
-  if (!secretKey || !/^sk_(live|test)_/.test(secretKey))
-    throw new HttpError(
-      503,
-      "Conecta la instancia de Clerk de Diariamente en Configuración para consultar sus usuarios.",
-    );
+  const { project, secretKey } = await getClerkConnection(
+    source.teamId,
+    source.projectId,
+  );
   const client = createClerkClient({ secretKey });
   const now = Date.now();
   const { page, period, query } = filters;
@@ -32,11 +31,14 @@ export async function getUsers(
       limit: USERS_PAGE_SIZE,
       offset: page * USERS_PAGE_SIZE,
     });
-    const pageBilling = diariamenteBillingConfigured()
-      ? pageList
-          .then((result) => getUsersBilling(result.data.map((user) => user.id)))
-          .catch(() => null)
-      : Promise.resolve(undefined);
+    const pageBilling =
+      project.billing && diariamenteBillingConfigured()
+        ? pageList
+            .then((result) =>
+              getUsersBilling(result.data.map((user) => user.id)),
+            )
+            .catch(() => null)
+        : Promise.resolve(undefined);
     const [list, total, day, week, month, billing] = await Promise.all([
       pageList,
       client.users.getCount(),
@@ -52,12 +54,18 @@ export async function getUsers(
       pageBilling,
     ]);
     return {
+      project,
       users: list.data.map((user) => ({
         ...registeredUser(user),
         billing: billing?.get(user.id) ?? null,
       })),
-      billing:
-        billing === undefined ? "unconfigured" : billing ? "ok" : "error",
+      billing: !project.billing
+        ? "unsupported"
+        : billing === undefined
+          ? "unconfigured"
+          : billing
+            ? "ok"
+            : "error",
       total,
       newUsers: {
         day: day.totalCount,
@@ -67,16 +75,14 @@ export async function getUsers(
       filteredTotal: list.totalCount,
       page,
       pageSize: USERS_PAGE_SIZE,
-      environment: secretKey.startsWith("sk_live_")
-        ? "production"
-        : "development",
+      environment: "production",
       fetchedAt: new Date(now).toISOString(),
     };
   } catch {
     // Upstream auth failures must neither sign out the admin nor expose SDK payloads.
     throw new HttpError(
       502,
-      "No se han podido consultar los usuarios de Diariamente. Revisa su conexión de Clerk y vuelve a intentarlo.",
+      `No se han podido consultar los usuarios de ${project.name}. Revisa su conexión de Clerk y vuelve a intentarlo.`,
     );
   }
 }

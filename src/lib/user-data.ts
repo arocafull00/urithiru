@@ -3,6 +3,49 @@ import { HttpError } from "./http";
 
 export const USERS_PAGE_SIZE = 25;
 
+export function usersSourceQuery(request: Request) {
+  const params = new URL(request.url).searchParams;
+  const teamId = params.get("team") ?? process.env.VERCEL_TEAM_ID ?? "";
+  const projectId = params.get("project") ?? "";
+  if (teamId && !/^team_[a-zA-Z0-9]+$/.test(teamId))
+    throw new HttpError(400, "Equipo no válido.");
+  if (projectId && !/^[a-zA-Z0-9_-]{1,100}$/.test(projectId))
+    throw new HttpError(400, "Proyecto no válido.");
+  return { teamId, projectId };
+}
+
+export function clerkProjectSettings(name: string) {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const billing = ["diariamente", "diariamente-web"].includes(slug);
+  return {
+    name: billing ? "DiariaMente" : slug === "replay" ? "rePlay" : name,
+    billing,
+    secretKeyVariable: billing
+      ? "DIARIAMENTE_CLERK_SECRET_KEY"
+      : `${slug.replace(/-/g, "_").toUpperCase()}_CLERK_SECRET_KEY`,
+  };
+}
+
+export function productionClerkVariable(
+  envs: {
+    id?: string;
+    key: string;
+    target?: string | string[];
+    gitBranch?: string;
+    value?: string;
+    type?: string;
+  }[],
+) {
+  return envs.find(
+    (env) =>
+      env.key === "CLERK_SECRET_KEY" &&
+      !env.gitBranch &&
+      (Array.isArray(env.target)
+        ? env.target.includes("production")
+        : env.target === "production"),
+  );
+}
+
 export function usersQuery(request: Request) {
   const params = new URL(request.url).searchParams;
   const page = Number(params.get("page") ?? 0);

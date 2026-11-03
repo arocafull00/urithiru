@@ -7,11 +7,14 @@ import type {
   Section,
   Period,
   UsersResult,
+  ClerkProjectsResult,
 } from "@/lib/types";
 type State = {
   session: Session | null;
   snapshots: Record<string, Dashboard>;
   userSnapshots: Record<string, UsersResult>;
+  clerkProjects: Record<string, ClerkProjectsResult>;
+  usersProject: string;
   section: Section;
   period: Period;
   team: string;
@@ -20,11 +23,20 @@ type State = {
   favorites: string[];
   patch: (
     state: Partial<
-      Omit<State, "patch" | "remember" | "rememberUsers" | "clear" | "favorite">
+      Omit<
+        State,
+        | "patch"
+        | "remember"
+        | "rememberUsers"
+        | "rememberClerkProjects"
+        | "clear"
+        | "favorite"
+      >
     >,
   ) => void;
   remember: (key: string, data: Dashboard) => void;
   rememberUsers: (key: string, data: UsersResult) => void;
+  rememberClerkProjects: (key: string, data: ClerkProjectsResult) => void;
   clear: () => void;
   favorite: (id: string) => void;
 };
@@ -32,6 +44,8 @@ const initial = {
   session: null,
   snapshots: {},
   userSnapshots: {},
+  clerkProjects: {},
+  usersProject: "",
   section: "overview" as Section,
   period: 7 as Period,
   team: "",
@@ -44,6 +58,19 @@ export const useDashboard = create<State>()(
     (set) => ({
       ...initial,
       patch: (state) => set(state),
+      rememberClerkProjects: (key, data) =>
+        set((state) => {
+          if (JSON.stringify(state.clerkProjects[key]) === JSON.stringify(data))
+            return state;
+          return {
+            clerkProjects: Object.fromEntries([
+              ...Object.entries(state.clerkProjects)
+                .filter(([k]) => k !== key)
+                .slice(-3),
+              [key, data],
+            ]),
+          };
+        }),
       rememberUsers: (key, data) =>
         set((state) => {
           const previous = state.userSnapshots[key];
@@ -68,7 +95,7 @@ export const useDashboard = create<State>()(
             userSnapshots: Object.fromEntries([
               ...Object.entries(state.userSnapshots)
                 .filter(([k]) => k !== key)
-                .slice(-3),
+                .slice(-19),
               [key, { ...data, users }],
             ]),
           };
@@ -110,6 +137,8 @@ export const useDashboard = create<State>()(
         session: state.session,
         snapshots: state.snapshots,
         userSnapshots: state.userSnapshots,
+        clerkProjects: state.clerkProjects,
+        usersProject: state.usersProject,
         section: state.section,
         period: state.period,
         team: state.team,

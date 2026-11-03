@@ -17,6 +17,7 @@ const ACCESS_LABELS: Record<BillingAccess, string> = {
   clinic: "Cubierto por clínica",
   subscribed: "Suscrito",
   trial: "Prueba",
+  trial_available: "Prueba disponible",
   pricing_pending: "Precio pendiente",
   expired: "Caducado",
 };
@@ -34,12 +35,15 @@ function accessLabel(billing: UserBilling) {
   return ACCESS_LABELS[billing.access];
 }
 
-async function sendUpdate(id: string, update: BillingUpdate) {
-  const response = await fetch(`/api/users/${encodeURIComponent(id)}/billing`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(update),
-  });
+async function sendUpdate(id: string, update: BillingUpdate, source: string) {
+  const response = await fetch(
+    `/api/users/${encodeURIComponent(id)}/billing?${source}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(update),
+    },
+  );
   if (response.ok) return null;
   const body = await response.json().catch(() => null);
   return (
@@ -75,9 +79,11 @@ export const UserPlanCell = memo(function UserPlanCell({
 export const UserActionsCell = memo(function UserActionsCell({
   user,
   onUpdated,
+  source,
 }: {
   user: DiariamenteUser;
   onUpdated: () => void;
+  source: string;
 }) {
   const [pending, setPending] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -90,7 +96,7 @@ export const UserActionsCell = memo(function UserActionsCell({
   async function run(update: BillingUpdate) {
     setPending(true);
     setError(null);
-    const message = await sendUpdate(user.id, update);
+    const message = await sendUpdate(user.id, update, source);
     setPending(false);
     setConfirming(false);
     if (message) return setError(message);
@@ -110,7 +116,10 @@ export const UserActionsCell = memo(function UserActionsCell({
               size="xs"
               disabled={pending}
               onClick={() =>
-                void run({ action: "lifetime", enabled: !billing.lifetimeAccess })
+                void run({
+                  action: "lifetime",
+                  enabled: !billing.lifetimeAccess,
+                })
               }
             >
               {pending ? "Guardando" : "Confirmar"}

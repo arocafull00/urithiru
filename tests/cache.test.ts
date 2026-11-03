@@ -16,9 +16,8 @@ test("la caché no vuelve a notificar al recordar el mismo snapshot y conserva l
     configurable: true,
     value: { localStorage: globalThis.localStorage },
   });
-  const { useDashboard, clearPrivateCache } = await import(
-    "../src/stores/dashboard"
-  );
+  const { useDashboard, clearPrivateCache } =
+    await import("../src/stores/dashboard");
   useDashboard.persist.setOptions({
     storage: createJSONStorage(() => ({
       getItem: (key) => storage.get(key) ?? null,
@@ -84,6 +83,14 @@ test("la caché no vuelve a notificar al recordar el mismo snapshot y conserva l
   );
   unsubscribe();
   const users = {
+    project: {
+      id: "diariamente",
+      name: "DiariaMente",
+      domain: null,
+      connected: true,
+      billing: true,
+      secretKeyVariable: "DIARIAMENTE_CLERK_SECRET_KEY",
+    },
     users: [],
     billing: "ok" as const,
     total: 0,
@@ -105,14 +112,21 @@ test("la caché no vuelve a notificar al recordar el mismo snapshot y conserva l
     useDashboard.getState().userSnapshots["user1:/api/users"].users,
     previousUsers,
   );
-  for (let i = 0; i < 6; i++)
+  for (let i = 0; i < 22; i++)
     state.rememberUsers(`user1:/api/users?page=${i}`, users);
-  assert.equal(Object.keys(useDashboard.getState().userSnapshots).length, 4);
+  assert.equal(Object.keys(useDashboard.getState().userSnapshots).length, 20);
   assert.equal(
     useDashboard.getState().userSnapshots["other-user:/api/users"],
     undefined,
   );
+  state.rememberClerkProjects("user1:team1", {
+    projects: [users.project],
+    issues: [],
+  });
+  state.patch({ usersProject: users.project.id });
   await clearPrivateCache();
+  assert.deepEqual(useDashboard.getState().clerkProjects, {});
+  assert.equal(useDashboard.getState().usersProject, "");
   assert.deepEqual(useDashboard.getState().userSnapshots, {});
   assert.deepEqual(useDashboard.getState().snapshots, {});
   assert.equal(useDashboard.getState().session, null);

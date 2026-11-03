@@ -18,12 +18,20 @@ import {
   Select,
   SelectContent,
   SelectItem,
+  SelectGroup,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
 import { UserActionsCell, UserPlanCell } from "./user-billing";
 import { useDashboard } from "@/stores/dashboard";
-import type { DiariamenteUser, UsersResult } from "@/lib/types";
+import type {
+  ClerkProject,
+  ClerkProjectsResult,
+  DiariamenteUser,
+  Session,
+  UsersResult,
+} from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const number = (value: number | undefined) =>
@@ -38,9 +46,13 @@ const date = (value: number | null) =>
 const UserRow = memo(function UserRow({
   user,
   onUpdated,
+  showBilling,
+  source,
 }: {
   user: DiariamenteUser;
   onUpdated: () => void;
+  showBilling: boolean;
+  source: string;
 }) {
   return (
     <tr>
@@ -70,17 +82,181 @@ const UserRow = memo(function UserRow({
               : "Sin verificar"}
         </Badge>
       </td>
-      <td>
-        <UserPlanCell billing={user.billing} />
-      </td>
-      <td className="users-actions">
-        <UserActionsCell user={user} onUpdated={onUpdated} />
-      </td>
+      {showBilling && (
+        <td>
+          <UserPlanCell billing={user.billing} />
+        </td>
+      )}
+      {showBilling && (
+        <td className="users-actions">
+          <UserActionsCell user={user} onUpdated={onUpdated} source={source} />
+        </td>
+      )}
     </tr>
   );
 });
 
-export default function Users({ userId }: { userId: string }) {
+export default function Users({
+  userId,
+  teams,
+}: {
+  userId: string;
+  teams: Session["teams"];
+}) {
+  const team = useDashboard((s) => s.team);
+  const selected = useDashboard((s) => s.usersProject);
+  const url = `/api/users/projects?${new URLSearchParams({ team })}`;
+  const key = `${userId}:${url}`;
+  const snapshot = useDashboard((s) => s.clerkProjects[key]);
+  const { data, error, isValidating, mutate } = useSWR<ClerkProjectsResult>(
+    [url, userId],
+    {
+      fallbackData: snapshot,
+      refreshInterval: 60000,
+      keepPreviousData: false,
+    },
+  );
+  useEffect(() => {
+    if (data) useDashboard.getState().rememberClerkProjects(key, data);
+  }, [data, key]);
+  const catalog = data ?? snapshot;
+  const project =
+    catalog?.projects.find((item) => item.id === selected) ??
+    catalog?.projects.find((item) => item.connected && item.billing) ??
+    catalog?.projects.find((item) => item.connected) ??
+    catalog?.projects[0];
+  return (
+    <div className="users-screen">
+      <div className="table-toolbar users-toolbar">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={team || "personal"}
+            onValueChange={(value) =>
+              useDashboard
+                .getState()
+                .patch({ team: value === "personal" ? "" : value })
+            }
+          >
+            <SelectTrigger
+              aria-label="Equipo de los proyectos con Clerk"
+              className="w-full sm:w-48"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="personal">Cuenta personal</SelectItem>
+              {teams.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={project?.id ?? ""}
+            disabled={!catalog?.projects.length}
+            onValueChange={(value) =>
+              useDashboard.getState().patch({ usersProject: value })
+            }
+          >
+            <SelectTrigger
+              aria-label="Proyecto de los usuarios"
+              className="w-full sm:w-64"
+            >
+              <SelectValue
+                placeholder={
+                  isValidating
+                    ? "Buscando proyectos…"
+                    : "Sin proyectos con Clerk"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {[true, false].map(
+                (connected) =>
+                  catalog?.projects.some(
+                    (item) => item.connected === connected,
+                  ) && (
+                    <SelectGroup key={String(connected)}>
+                      <SelectLabel>
+                        {connected ? "Producción" : "Producción por verificar"}
+                      </SelectLabel>
+                      {catalog.projects
+                        .filter((item) => item.connected === connected)
+                        .map((item) => (
+                          <SelectItem key={item.id} value={item.id}>
+                            {item.name}
+                          </SelectItem>
+                        ))}
+                    </SelectGroup>
+                  ),
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isValidating}
+          onClick={() => void mutate()}
+        >
+          <RefreshCw size={14} className={cn(isValidating && "animate-spin")} />
+          Buscar proyectos
+        </Button>
+      </div>
+      {error && (
+        <div className="notice notice-error" role="alert">
+          {error.message}
+        </div>
+      )}
+      {catalog?.issues.map((issue) => (
+        <div className="notice" role="status" key={issue}>
+          {issue}
+        </div>
+      ))}
+      {!catalog && !error && <Skeleton className="h-72 w-full" />}
+      {catalog && !project && (
+        <div className="panel small-empty">
+          No se han encontrado proyectos con Clerk en producción en este equipo.
+        </div>
+      )}
+      {project && !project.connected && (
+        <div className="panel p-6 space-y-3">
+          <h2 className="font-semibold">Conectar {project.name}</h2>
+          <p className="text-sm text-muted-foreground">
+            Vercel tiene variables de Clerk para este proyecto, pero su clave
+            está protegida y no se puede verificar si corresponde a una
+            instancia de producción. Urithiru solo consulta instancias de
+            producción.
+          </p>
+          <p className="text-sm break-words">
+            Configura <code>{project.secretKeyVariable}</code> en el servidor de
+            Urithiru con la clave de producción de Clerk de {project.name} y
+            vuelve a desplegar.
+          </p>
+        </div>
+      )}
+      {project?.connected && (
+        <ProjectUsers
+          key={`${team}:${project.id}`}
+          userId={userId}
+          project={project}
+          team={team}
+        />
+      )}
+    </div>
+  );
+}
+
+function ProjectUsers({
+  userId,
+  project,
+  team,
+}: {
+  userId: string;
+  project: ClerkProject;
+  team: string;
+}) {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({ query: "", period: 0, page: 0 });
   useEffect(() => {
@@ -96,6 +272,8 @@ export default function Users({ userId }: { userId: string }) {
     return () => clearTimeout(timer);
   }, [search]);
   const params = new URLSearchParams({
+    project: project.id,
+    team,
     q: filters.query,
     period: String(filters.period),
     page: String(filters.page),
@@ -106,7 +284,9 @@ export default function Users({ userId }: { userId: string }) {
   const lastSnapshot = useDashboard(
     (s) =>
       Object.entries(s.userSnapshots).findLast(([cachedKey]) =>
-        cachedKey.startsWith(`${userId}:/api/users?`),
+        cachedKey.startsWith(
+          `${userId}:/api/users?${new URLSearchParams({ project: project.id, team })}&`,
+        ),
       )?.[1],
   );
   const { data, error, isValidating, mutate } = useSWR<UsersResult>(
@@ -131,18 +311,11 @@ export default function Users({ userId }: { userId: string }) {
     <div className="users-screen">
       <div className="users-source">
         <div>
-          <strong>Diariamente</strong>
+          <strong>{project.name}</strong>
           <span>Usuarios registrados en la aplicación</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {summary && (
-            <Badge variant="outline">
-              Clerk ·{" "}
-              {summary.environment === "production"
-                ? "Producción"
-                : "Desarrollo"}
-            </Badge>
-          )}
+          <Badge variant="outline">Clerk · Producción</Badge>
           <Button
             variant="outline"
             size="sm"
@@ -181,22 +354,15 @@ export default function Users({ userId }: { userId: string }) {
           aparecerán cuando vuelva a responder.
         </div>
       )}
-      {current?.billing === "unconfigured" && (
+      {project.billing && current?.billing === "unconfigured" && (
         <div className="notice" role="status">
           Configura DIARIAMENTE_API_URL y DIARIAMENTE_ADMIN_API_SECRET para ver
           y gestionar los planes de cada usuario.
         </div>
       )}
-      {summary?.environment === "development" && (
-        <div className="notice" role="status">
-          Estás viendo la instancia de desarrollo de Diariamente. Para consultar
-          las altas de producción, conecta su instancia de producción en
-          Configuración.
-        </div>
-      )}
       <div
         className="metrics-strip users-metrics"
-        aria-label="Resumen de registros de Diariamente"
+        aria-label={`Resumen de registros de ${project.name}`}
       >
         {[
           {
@@ -290,7 +456,7 @@ export default function Users({ userId }: { userId: string }) {
         <div
           className="table-scroll"
           role="region"
-          aria-label="Lista de usuarios de Diariamente"
+          aria-label={`Lista de usuarios de ${project.name}`}
           tabIndex={0}
         >
           <table>
@@ -300,42 +466,56 @@ export default function Users({ userId }: { userId: string }) {
                 <th scope="col">Fecha de registro</th>
                 <th scope="col">Último acceso</th>
                 <th scope="col">Correo</th>
-                <th scope="col">Plan</th>
-                <th scope="col" className="users-actions">
-                  Acciones
-                </th>
+                {project.billing && <th scope="col">Plan</th>}
+                {project.billing && (
+                  <th scope="col" className="users-actions">
+                    Acciones
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {!current && !error
                 ? Array.from({ length: 5 }, (_, index) => (
                     <tr key={index}>
-                      {Array.from({ length: 6 }, (_, cell) => (
-                        <td key={cell}>
-                          <Skeleton className="h-5 w-24" />
-                        </td>
-                      ))}
+                      {Array.from(
+                        { length: project.billing ? 6 : 4 },
+                        (_, cell) => (
+                          <td key={cell}>
+                            <Skeleton className="h-5 w-24" />
+                          </td>
+                        ),
+                      )}
                     </tr>
                   ))
                 : current?.users.map((user) => (
-                    <UserRow key={user.id} user={user} onUpdated={refresh} />
+                    <UserRow
+                      key={user.id}
+                      user={user}
+                      onUpdated={refresh}
+                      showBilling={project.billing}
+                      source={new URLSearchParams({
+                        project: project.id,
+                        team,
+                      }).toString()}
+                    />
                   ))}
               {current && current.users.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="small-empty">
+                  <td colSpan={project.billing ? 6 : 4} className="small-empty">
                     {filters.query
                       ? "No hay usuarios que coincidan con esta búsqueda."
                       : filters.period
                         ? "No se han registrado usuarios en este periodo."
                         : filters.page
                           ? "No hay usuarios en esta página. Vuelve a la anterior."
-                          : "Diariamente todavía no tiene usuarios registrados."}
+                          : `${project.name} todavía no tiene usuarios registrados.`}
                   </td>
                 </tr>
               )}
               {!current && error && (
                 <tr>
-                  <td colSpan={6} className="small-empty">
+                  <td colSpan={project.billing ? 6 : 4} className="small-empty">
                     No se ha podido cargar la lista de usuarios.
                   </td>
                 </tr>
