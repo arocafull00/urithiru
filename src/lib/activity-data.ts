@@ -24,6 +24,7 @@ export type ActivityDigest = {
   projects: ActivityProject[];
   issues: string[];
   repositoriesChecked: number;
+  aiSummary?: string | null;
 };
 export type ActivityResult = {
   connected: boolean;

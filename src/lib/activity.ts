@@ -3,6 +3,7 @@ import { requireCronSecret } from "./cron-auth";
 import { database } from "./db";
 import { HttpError } from "./http";
 import { collectActivity } from "./github-activity";
+import { summarizeActivity } from "./activity-summary";
 import { type ActivityDigest, type ActivityResult } from "./activity-data";
 
 function settings() {
@@ -38,6 +39,11 @@ export async function generateActivity(date: string) {
   // Verify the migration before spending API quota collecting the day's work.
   await sql`SELECT 1 FROM urithiru_activity LIMIT 1`;
   const digest = await collectActivity({ token, username, date });
+  digest.aiSummary = await summarizeActivity({
+    apiKey: process.env.GROQ_API_KEY?.trim() ?? "",
+    model: process.env.ACTIVITY_AI_MODEL?.trim() || undefined,
+    digest,
+  });
   // One row per account/day. Retries do not duplicate reports, and an older or
   // partial run never replaces a newer complete report.
   const rows = await sql`INSERT INTO urithiru_activity (username, activity_date, digest, generated_at)

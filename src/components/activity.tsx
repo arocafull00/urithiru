@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { CalendarDays, ChevronLeft, ChevronRight, ExternalLink, GitCommitHorizontal, RefreshCw, Search } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, ExternalLink, GitCommitHorizontal, RefreshCw, Search, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
@@ -115,6 +115,10 @@ export default function Activity({ userId }: { userId: string }) {
       )}
 
       {digest && <>
+        {digest.aiSummary && <section className="panel panel-padding space-y-2" aria-label="Resumen del día con IA">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Sparkles size={14} aria-hidden="true" />Resumen del día</h2>
+          <p className="text-base leading-relaxed">{digest.aiSummary}</p>
+        </section>}
         <div className="space-y-2">
           <h2 className="text-lg font-semibold">{dayLabel(date)}</h2>
           <p className="text-sm">{digest.issues.length ? "Actividad recuperada" : "Tu actividad"}: <strong>{count} {count === 1 ? "commit" : "commits"}</strong> en <strong>{digest.projects.length} {digest.projects.length === 1 ? "proyecto" : "proyectos"}</strong>.</p>
