@@ -1183,6 +1183,27 @@ tbody tr:hover {
 .users-panel .project-title small {
   max-width: 300px;
 }
+.users-panel th:has(.users-sort-button) {
+  padding: 0;
+}
+.users-sort-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 10px 17px;
+  text-align: left;
+  cursor: pointer;
+}
+.users-sort-button:hover,
+.users-panel th[aria-sort="ascending"],
+.users-panel th[aria-sort="descending"] {
+  color: var(--foreground);
+}
+.users-sort-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
 .users-actions {
   text-align: right;
   width: 1%;

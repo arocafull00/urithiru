@@ -2,6 +2,13 @@ import type { RegisteredUser } from "./types";
 import { HttpError } from "./http";
 
 export const USERS_PAGE_SIZE = 25;
+const USER_SORT_FIELDS = [
+  "first_name",
+  "created_at",
+  "last_sign_in_at",
+  "email_address",
+] as const;
+export type UsersOrderBy = `${"+" | "-"}${(typeof USER_SORT_FIELDS)[number]}`;
 
 export function usersSourceQuery(request: Request) {
   const params = new URL(request.url).searchParams;
@@ -51,6 +58,7 @@ export function usersQuery(request: Request) {
   const page = Number(params.get("page") ?? 0);
   const period = Number(params.get("period") ?? 0);
   const query = (params.get("q") ?? "").trim();
+  const orderBy = params.get("orderBy") ?? "-created_at";
   if (!Number.isSafeInteger(page) || page < 0 || page > 100000)
     throw new HttpError(400, "Página no válida.");
   if (![0, 1, 7, 30].includes(period))
@@ -60,7 +68,13 @@ export function usersQuery(request: Request) {
       400,
       "La búsqueda no puede superar los 200 caracteres.",
     );
-  return { page, period, query };
+  if (
+    !USER_SORT_FIELDS.some(
+      (field) => orderBy === `+${field}` || orderBy === `-${field}`,
+    )
+  )
+    throw new HttpError(400, "Orden de usuarios no válido.");
+  return { page, period, query, orderBy: orderBy as UsersOrderBy };
 }
 
 // Only these fields may cross the server boundary. Never include Clerk metadata.

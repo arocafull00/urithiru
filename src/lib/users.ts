@@ -7,10 +7,13 @@ import {
 import { HttpError } from "./http";
 import { getClerkConnection } from "./clerk-projects";
 import { registeredUser, USERS_PAGE_SIZE, usersQuery } from "./user-data";
+import type { UsersOrderBy } from "./user-data";
 import type { UsersResult } from "./types";
 
 export async function getUsers(
-  filters: ReturnType<typeof usersQuery>,
+  filters: Omit<ReturnType<typeof usersQuery>, "orderBy"> & {
+    orderBy?: UsersOrderBy;
+  },
   source = { teamId: process.env.VERCEL_TEAM_ID ?? "", projectId: "" },
 ): Promise<UsersResult> {
   const { project, secretKey } = await getClerkConnection(
@@ -19,7 +22,7 @@ export async function getUsers(
   );
   const client = createClerkClient({ secretKey });
   const now = Date.now();
-  const { page, period, query } = filters;
+  const { page, period, query, orderBy = "-created_at" } = filters;
   const listFilters = {
     ...(query ? { query } : {}),
     ...(period ? { createdAtAfter: now - period * 86400000 } : {}),
@@ -27,7 +30,7 @@ export async function getUsers(
   try {
     const pageList = client.users.getUserList({
       ...listFilters,
-      orderBy: "-created_at",
+      orderBy,
       limit: USERS_PAGE_SIZE,
       offset: page * USERS_PAGE_SIZE,
     });

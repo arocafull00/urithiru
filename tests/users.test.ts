@@ -84,11 +84,17 @@ test("usuarios: la facturación de DiariaMente no se aplica a otros proyectos", 
 test("usuarios: valida filtros y páginas antes de consultar Clerk", () => {
   const request = (query: string) =>
     new Request(`https://urithiru.test/api/users?${query}`);
-  assert.deepEqual(usersQuery(request("")), { page: 0, period: 0, query: "" });
+  assert.deepEqual(usersQuery(request("")), {
+    page: 0,
+    period: 0,
+    query: "",
+    orderBy: "-created_at",
+  });
   assert.deepEqual(usersQuery(request("page=2&period=7&q=%20Ana%20")), {
     page: 2,
     period: 7,
     query: "Ana",
+    orderBy: "-created_at",
   });
   for (const query of [
     "page=-1",
@@ -97,12 +103,34 @@ test("usuarios: valida filtros y páginas antes de consultar Clerk", () => {
     "page=Infinity",
     "page=100001",
     "period=2",
+    "orderBy=created_at",
+    "orderBy=-unknown",
+    "orderBy=",
+    "orderBy=%2Bemail_address,-created_at",
     `q=${"a".repeat(201)}`,
   ])
     assert.throws(
       () => usersQuery(request(query)),
       (error: unknown) => (error as { status: number }).status === 400,
     );
+});
+
+test("usuarios: permite ordenar todas las páginas conservando búsqueda y periodo", () => {
+  for (const field of ["first_name", "created_at", "last_sign_in_at", "email_address"]) {
+    for (const direction of ["+", "-"]) {
+      const orderBy = `${direction}${field}`;
+      const params = new URLSearchParams({
+        orderBy,
+        page: "2",
+        period: "7",
+        q: "Ana",
+      });
+      assert.deepEqual(
+        usersQuery(new Request(`https://urithiru.test/api/users?${params}`)),
+        { page: 2, period: 7, query: "Ana", orderBy },
+      );
+    }
+  }
 });
 
 test("usuarios: solo expone campos permitidos y verifica únicamente el correo principal", () => {

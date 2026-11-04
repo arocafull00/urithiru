@@ -3,6 +3,9 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -33,6 +36,14 @@ import type {
   UsersResult,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import type { UsersOrderBy } from "@/lib/user-data";
+
+const sortableColumns = [
+  { field: "first_name", label: "Usuario y correo", sortLabel: "nombre de usuario" },
+  { field: "created_at", label: "Fecha de registro", sortLabel: "fecha de registro" },
+  { field: "last_sign_in_at", label: "Último acceso", sortLabel: "último acceso" },
+  { field: "email_address", label: "Correo", sortLabel: "dirección de correo" },
+] as const;
 
 const number = (value: number | undefined) =>
   value?.toLocaleString("es-ES") ?? "—";
@@ -258,7 +269,12 @@ function ProjectUsers({
   team: string;
 }) {
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState({ query: "", period: 0, page: 0 });
+  const [filters, setFilters] = useState({
+    query: "",
+    period: 0,
+    page: 0,
+    orderBy: "-created_at" as UsersOrderBy,
+  });
   useEffect(() => {
     const timer = setTimeout(
       () =>
@@ -277,6 +293,7 @@ function ProjectUsers({
     q: filters.query,
     period: String(filters.period),
     page: String(filters.page),
+    orderBy: filters.orderBy,
   });
   const url = `/api/users?${params}`;
   const key = `${userId}:${url}`;
@@ -414,7 +431,7 @@ function ProjectUsers({
             <h2 id="users-list-title">
               {filters.period ? "Nuevos registros" : "Todos los usuarios"}
             </h2>
-            <p>Ordenados del registro más reciente al más antiguo.</p>
+            <p>Pulsa en una cabecera para cambiar el orden.</p>
           </div>
           <UsersIcon size={18} className="text-muted-foreground" />
         </div>
@@ -462,10 +479,43 @@ function ProjectUsers({
           <table>
             <thead>
               <tr>
-                <th scope="col">Usuario y correo</th>
-                <th scope="col">Fecha de registro</th>
-                <th scope="col">Último acceso</th>
-                <th scope="col">Correo</th>
+                {sortableColumns.map(({ field, label, sortLabel }) => {
+                  const active = filters.orderBy.slice(1) === field;
+                  const ascending = filters.orderBy.startsWith("+");
+                  const nextAscending = active
+                    ? !ascending
+                    : field === "first_name" || field === "email_address";
+                  const SortIcon = active
+                    ? ascending
+                      ? ArrowUp
+                      : ArrowDown
+                    : ArrowUpDown;
+                  return (
+                    <th
+                      key={field}
+                      scope="col"
+                      aria-sort={
+                        active ? (ascending ? "ascending" : "descending") : "none"
+                      }
+                    >
+                      <button
+                        type="button"
+                        className="users-sort-button"
+                        aria-label={`Ordenar por ${sortLabel} en orden ${nextAscending ? "ascendente" : "descendente"}`}
+                        onClick={() =>
+                          setFilters((previous) => ({
+                            ...previous,
+                            page: 0,
+                            orderBy: `${nextAscending ? "+" : "-"}${field}`,
+                          }))
+                        }
+                      >
+                        {label}
+                        <SortIcon size={13} aria-hidden="true" />
+                      </button>
+                    </th>
+                  );
+                })}
                 {project.billing && <th scope="col">Plan</th>}
                 {project.billing && (
                   <th scope="col" className="users-actions">
