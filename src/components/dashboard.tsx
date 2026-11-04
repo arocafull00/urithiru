@@ -16,6 +16,7 @@ import {
   Database,
   ExternalLink,
   FolderKanban,
+  GitCommitHorizontal,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -71,12 +72,16 @@ const TrafficChart = dynamic(() => import("./traffic-chart"), {
 const Users = dynamic(() => import("./users"), {
   loading: () => <Skeleton className="h-72 w-full" />,
 });
+const ActivityView = dynamic(() => import("./activity"), {
+  loading: () => <Skeleton className="h-72 w-full" />,
+});
 const formatNumber = (n: number | null | undefined) =>
   n == null ? "—" : n.toLocaleString("es-ES");
 const navigation = [
   { id: "overview", name: "Vista general", icon: LayoutDashboard },
   { id: "projects", name: "Proyectos", icon: FolderKanban },
   { id: "users", name: "Usuarios", icon: UsersIcon },
+  { id: "activity", name: "Actividad", icon: GitCommitHorizontal },
   { id: "logs", name: "Logs", icon: Terminal },
   { id: "errors", name: "Errores", icon: CircleAlert },
   { id: "settings", name: "Configuración", icon: Settings2 },
@@ -390,7 +395,7 @@ function Workspace({
   const snapshotKey = `${session.userId}:${team}:${period}`;
   const snapshot = useDashboard((s) => s.snapshots[snapshotKey]);
   const { data, error, mutate, isValidating } = useSWR<DashboardData>(
-    session.vercel && section !== "users" ? [url, session.userId] : null,
+    session.vercel && section !== "users" && section !== "activity" ? [url, session.userId] : null,
     { fallbackData: snapshot, refreshInterval: 60000, keepPreviousData: false },
   );
   useEffect(() => {
@@ -479,7 +484,7 @@ function Workspace({
               última información disponible.
             </Notice>
           )}
-          {section !== "settings" && section !== "users" && (
+          {section !== "settings" && section !== "users" && section !== "activity" && (
             <div className="toolbar">
               <div className="flex flex-wrap items-center gap-2">
                 <Select
@@ -573,7 +578,7 @@ function Workspace({
               </div>
             </div>
           )}
-          {error && section !== "users" && (
+          {error && section !== "users" && section !== "activity" && (
             <Notice error>
               {error.message}.{" "}
               {data
@@ -583,6 +588,8 @@ function Workspace({
           )}
           {section === "users" ? (
             <Users userId={session.userId} teams={session.teams} />
+          ) : section === "activity" ? (
+            <ActivityView userId={session.userId} />
           ) : !session.vercel && section !== "settings" ? (
             <ConnectionEmpty />
           ) : section === "settings" ? (
@@ -630,6 +637,8 @@ function Workspace({
               <span className="status-dot" />
               {section === "users"
                 ? "Usuarios · Clerk de producción"
+                : section === "activity"
+                  ? "Actividad · GitHub · Europe/Madrid"
                 : data
                   ? `Última lectura: ${new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(data.fetchedAt))}`
                   : "Pendiente de conexión"}

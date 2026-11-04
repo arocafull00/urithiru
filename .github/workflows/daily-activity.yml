@@ -1,0 +1,35 @@
+name: Resumen diario de GitHub
+
+on:
+  schedule:
+    - cron: '0 20 * * *'
+      timezone: Europe/Madrid
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: daily-activity
+  cancel-in-progress: false
+
+jobs:
+  daily-activity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Generar y guardar el resumen en Urithiru
+        env:
+          APP_URL: ${{ vars.URITHIRU_URL }}
+          CRON_SECRET: ${{ secrets.URITHIRU_CRON_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_URL" || -z "$CRON_SECRET" || "$APP_URL" != https://* ]]; then
+            echo 'Configura URITHIRU_URL (variable HTTPS) y URITHIRU_CRON_SECRET (secreto) en este repositorio.'
+            exit 1
+          fi
+          curl --silent --show-error --fail --output /dev/null \
+            --connect-timeout 15 --max-time 290 \
+            --retry 2 --retry-delay 15 --retry-max-time 880 \
+            --request POST --header "Authorization: Bearer $CRON_SECRET" \
+            "${APP_URL%/}/api/cron/activity"

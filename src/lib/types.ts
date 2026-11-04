@@ -1,6 +1,6 @@
 export type Period = 1 | 7 | 30;
 export type Section =
-  "overview" | "projects" | "users" | "logs" | "errors" | "settings";
+  "overview" | "projects" | "users" | "activity" | "logs" | "errors" | "settings";
 export type Metrics = { pageviews: number; visitors: number };
 export type TrafficPoint = Metrics & { timestamp: string };
 export type Analytics = Metrics & { series: TrafficPoint[] };

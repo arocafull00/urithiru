@@ -86,6 +86,33 @@ Además de Vercel, la vista de Logs/Errores puede incluir otras dos fuentes. Cad
 
 Con los tokens en `.env.local`, la prueba de integración `scripts/smoke.ts` (ver Validar) indica cuántos eventos llegan de cada fuente y qué proyectos no se han emparejado.
 
+## Actividad diaria de GitHub
+
+La sección **Actividad** (`/?view=activity`) guarda un resumen por día y repositorio: tipos de cambio según los prefijos de los mensajes (`feat`, `fix`, etc.), títulos, mensajes completos, horas, ramas y enlaces a los commits. Permite buscar un proyecto, consultar fechas anteriores y generar o regenerar un día manualmente. Funciona independientemente de la conexión con Vercel. La lectura y la generación manual exigen permiso de administrador de Urithiru.
+
+El cron de `.github/workflows/daily-activity.yml` se programa **todos los días a las 20:00 en `Europe/Madrid`**, con ajuste automático de horario de verano. GitHub Actions puede ejecutarlo con retraso; el resumen cubre desde medianoche hasta el instante de la consulta. Para incluir trabajo posterior, regenera ese día. No se envía correo: el resultado se consulta en Urithiru.
+
+Configuración en el servidor de Urithiru:
+
+| Variable | Uso |
+| --- | --- |
+| `GITHUB_USERNAME` | Usuario cuyos commits se incluyen; por ejemplo, `arocafull00`. |
+| `GITHUB_ACTIVITY_TOKEN` | Token de GitHub con **Contents: Read** y acceso a los repositorios deseados. Para repositorios privados u organizaciones, autoriza su acceso y SSO cuando corresponda. Nunca se envía al navegador. |
+| `DATABASE_URL` | Conexión Neon para conservar los resúmenes. Ejecuta `pnpm db:migrate` para crear `urithiru_activity`. |
+| `CRON_SECRET` | Secreto aleatorio largo que protege `POST /api/cron/activity`. |
+
+Configuración en **Settings → Secrets and variables → Actions** del repositorio Urithiru:
+
+1. Variable `URITHIRU_URL`: URL HTTPS del despliegue de producción, sin ruta (p. ej. `https://urithiru.tu-dominio.es`). El endpoint debe ser accesible desde Actions; la protección de despliegues de Vercel no debe bloquear esta llamada.
+2. Secreto `URITHIRU_CRON_SECRET`: mismo valor que `CRON_SECRET` en Urithiru. No hace falta copiar el token de GitHub ni la conexión de base de datos a Actions.
+3. Despliega el código con sus variables y migraciones, y publica el workflow en la **rama predeterminada**. Activa Actions si está deshabilitado. Prueba desde **Actions → Resumen diario de GitHub → Run workflow** y consulta **Actividad**.
+
+La consulta recorre los repositorios de los que el propietario del token es dueño, colaborador o miembro de la organización, incluidos los privados permitidos por el token. Comprueba todas sus ramas actuales y pagina las respuestas; deduplica por SHA dentro de cada repositorio. Solo cuenta commits atribuidos a `GITHUB_USERNAME` con fecha de confirmación dentro del día de Madrid. **La fecha del commit no es la del push**: un commit antiguo subido hoy no se atribuye a hoy. No incluye cambios locales sin subir, ramas eliminadas, repositorios fuera de ese catálogo, PR sin commits propios ni trabajo de otros autores. El resumen se basa en los mensajes y no infiere resultados a partir del diff.
+
+Los fallos de permisos, cuota, paginación o tiempo se muestran como **cobertura parcial**, conservando los commits recuperados. Un fallo global no guarda un informe vacío. El cron falla si la consulta es parcial y hace hasta dos reintentos; una fila única por usuario y fecha evita duplicados. Una consulta parcial no sustituye un resumen completo anterior. Los resúmenes se conservan en Neon sin borrado automático; los últimos 90 días con resumen se ofrecen como navegación rápida y cualquier fecha anterior se puede elegir en el calendario. Sin credenciales, base de datos, despliegue o workflow publicado, el cron todavía no está activo.
+
+Documentación: [programación y zona horaria en GitHub Actions](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule), [consulta y permisos de commits](https://docs.github.com/en/rest/commits/commits#list-commits).
+
 ## Histórico opcional con Neon
 
 1. Crea una base de datos Neon y configura `DATABASE_URL`.
