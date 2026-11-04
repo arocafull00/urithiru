@@ -20,6 +20,6 @@ export async function POST(request: Request) {
       throw new HttpError(403, "Origen no permitido.");
     const date = activityDate(new URL(request.url).searchParams.get("date"));
     const result = await generateActivity(date);
-    return json({ ...await readActivity(date), saved: result.saved });
+    return json({ ...await readActivity(date), saved: result.saved, ai: result.ai });
   } catch (error) { return errorResponse(error); }
 }

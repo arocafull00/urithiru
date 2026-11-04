@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { esES } from "@clerk/localizations";
 import { shadcn } from "@clerk/ui/themes";
 import { ThemeProvider } from "next-themes";
+import { Toaster } from "./ui/sonner";
 export function Providers({
   children,
   configured,
@@ -18,6 +19,7 @@ export function Providers({
       storageKey="centralita-theme"
     >
       {children}
+      <Toaster />
     </ThemeProvider>
   );
   return configured ? (

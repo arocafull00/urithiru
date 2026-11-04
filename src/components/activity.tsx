@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { CalendarDays, ChevronLeft, ChevronRight, ExternalLink, GitCommitHorizontal, RefreshCw, Search, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { ChevronLeft, ChevronRight, ExternalLink, GitCommitHorizontal, RefreshCw, Search, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
@@ -12,15 +13,11 @@ import { madridDate, type ActivityResult } from "@/lib/activity-data";
 const clock = (value: string) => new Intl.DateTimeFormat("es-ES", {
   timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit",
 }).format(new Date(value));
-const dayLabel = (value: string) => new Intl.DateTimeFormat("es-ES", {
-  timeZone: "UTC", dateStyle: "full",
-}).format(new Date(`${value}T12:00:00Z`));
 
 export default function Activity({ userId }: { userId: string }) {
   const [date, setDate] = useState(() => madridDate());
   const [search, setSearch] = useState("");
   const [generating, setGenerating] = useState(false);
-  const [feedback, setFeedback] = useState<{ text: string; error: boolean } | null>(null);
   const url = `/api/activity?${new URLSearchParams({ date })}`;
   const { data, error, mutate, isValidating } = useSWR<ActivityResult>([url, userId], {
     refreshInterval: 60000, keepPreviousData: false,
@@ -29,10 +26,15 @@ export default function Activity({ userId }: { userId: string }) {
   const projects = digest?.projects.filter((p) => p.repository.toLowerCase().includes(search.toLowerCase())) ?? [];
   const count = digest?.projects.reduce((total, p) => total + p.commits.length, 0) ?? 0;
 
+  useEffect(() => {
+    if (!error) return;
+    const id = toast.error(`${error.message}${digest ? " Se conserva el resumen guardado." : ""}`, { action: { label: "Reintentar", onClick: () => void mutate() } });
+    return () => { toast.dismiss(id); };
+  }, [error, digest, mutate]);
+
   function changeDate(next: string) {
     if (!next || next > madridDate()) return;
     setDate(next);
-    setFeedback(null);
   }
   function offsetDay(offset: number) {
     const next = new Date(`${date}T12:00:00Z`);
@@ -41,7 +43,6 @@ export default function Activity({ userId }: { userId: string }) {
   }
   async function generate() {
     setGenerating(true);
-    setFeedback(null);
     try {
       const response = await fetch(url, { method: "POST" });
       const body = await response.json();
@@ -49,49 +50,42 @@ export default function Activity({ userId }: { userId: string }) {
       if (response.status === 403) window.dispatchEvent(new CustomEvent("centralita-access-denied", { detail: body.error }));
       if (!response.ok) throw new Error(body.error ?? "No se ha podido generar el resumen. Reinténtalo.");
       await mutate(body, { revalidate: false });
-      setFeedback({
-        text: body.saved ? "Resumen guardado." : "La consulta no ha mejorado la cobertura. Se conserva el resumen anterior; vuelve a intentarlo.",
-        error: !body.saved,
-      });
+      if (!body.saved) toast.error("La consulta no ha mejorado la cobertura. Se conserva el resumen anterior; vuelve a intentarlo.");
+      else if (body.ai === "failed") toast.warning("Resumen guardado, pero la IA no ha podido generar el texto del día. Revisa GROQ_API_KEY y el modelo en los logs del servidor.");
+      else if (body.ai === "disabled") toast.warning("Resumen guardado sin texto de IA: falta configurar GROQ_API_KEY en el servidor.");
+      else toast.success("Resumen guardado.");
     } catch (error) {
-      setFeedback({ text: error instanceof Error ? error.message : "No se ha podido generar el resumen.", error: true });
+      toast.error(error instanceof Error ? error.message : "No se ha podido generar el resumen.");
     } finally { setGenerating(false); }
   }
 
   return (
     <div className="space-y-6">
-      <div className="section-heading max-sm:flex-col max-sm:items-start">
-        <div>
-          <h2>Tu día en GitHub</h2>
-          <p>Lo que has avanzado, proyecto a proyecto. Resumen diario a las 20:00, hora de Madrid.</p>
-        </div>
-        <Button className="max-sm:self-start" size="sm" onClick={() => void generate()} disabled={generating || !data?.connected || !data.storage}>
-          <RefreshCw size={14} />
-          {generating ? "Generando resumen…" : digest ? "Regenerar resumen" : "Generar resumen"}
-        </Button>
-      </div>
-
-      <div className="toolbar">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" size="icon" aria-label="Día anterior" disabled={generating} onClick={() => offsetDay(-1)}><ChevronLeft size={16} /></Button>
-          <label className="flex items-center gap-2 text-sm">
-            <CalendarDays size={16} aria-hidden="true" />
-            <span className="sr-only">Fecha de actividad</span>
-            <Input type="date" className="w-auto" value={date} max={madridDate()} disabled={generating} onChange={(e) => changeDate(e.target.value)} />
-          </label>
-          <Button variant="outline" size="icon" aria-label="Día siguiente" disabled={generating || date >= madridDate()} onClick={() => offsetDay(1)}><ChevronRight size={16} /></Button>
-          <Button variant="ghost" size="sm" disabled={generating || date === madridDate()} onClick={() => changeDate(madridDate())}>Hoy</Button>
+          <div className="flex h-8 items-center rounded-md border border-input">
+            <Button variant="ghost" size="icon" className="size-8 rounded-r-none" aria-label="Día anterior" disabled={generating} onClick={() => offsetDay(-1)}><ChevronLeft size={14} /></Button>
+            <Input type="date" aria-label="Fecha de actividad" className="h-8 w-auto rounded-none border-0 px-1 text-sm shadow-none focus-visible:ring-0" value={date} max={madridDate()} disabled={generating} onChange={(e) => changeDate(e.target.value)} />
+            <Button variant="ghost" size="icon" className="size-8 rounded-l-none" aria-label="Día siguiente" disabled={generating || date >= madridDate()} onClick={() => offsetDay(1)}><ChevronRight size={14} /></Button>
+          </div>
+          {date !== madridDate() && <Button variant="ghost" size="sm" disabled={generating} onClick={() => changeDate(madridDate())}>Hoy</Button>}
+          <div className="relative">
+            <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+            <Input aria-label="Buscar proyecto en el resumen" className="h-8 w-44 pl-8 text-sm" placeholder="Buscar proyecto" value={search} onChange={(e) => setSearch(e.target.value)} />
+          </div>
         </div>
-        <label className="flex items-center gap-2">
-          <Search size={16} aria-hidden="true" />
-          <span className="sr-only">Buscar proyecto en el resumen</span>
-          <Input placeholder="Buscar proyecto…" value={search} onChange={(e) => setSearch(e.target.value)} />
-        </label>
+        <div className="flex items-center gap-3">
+          {digest && count > 0 && <span className="text-sm text-muted-foreground" title={`Desde las 00:00 hasta las ${clock(digest.until)}${date < madridDate() && clock(digest.until) === "00:00" ? " del día siguiente" : ""} · @${digest.username} · Hora de Madrid`}>
+            <strong className="font-medium text-foreground">{count}</strong> {count === 1 ? "commit" : "commits"} · <strong className="font-medium text-foreground">{digest.projects.length}</strong> {digest.projects.length === 1 ? "proyecto" : "proyectos"}
+          </span>}
+          <Button variant="outline" size="sm" onClick={() => void generate()} disabled={generating || !data?.connected || !data.storage}>
+            <RefreshCw size={14} className={generating ? "animate-spin" : undefined} />
+            {generating ? "Generando…" : digest ? "Regenerar" : "Generar resumen"}
+          </Button>
+        </div>
       </div>
 
-      {feedback && <div role={feedback.error ? "alert" : "status"} className={`notice ${feedback.error ? "notice-error" : ""}`}>{feedback.text}</div>}
       {generating && <div className="notice" role="status">Consultando tus repositorios y ramas. Puede tardar unos minutos.</div>}
-      {error && <div className="notice notice-error" role="alert"><span>{error.message} {digest && "Se conserva el resumen guardado."}</span><Button variant="outline" size="sm" disabled={isValidating} onClick={() => void mutate()}>Reintentar</Button></div>}
       {!data && !error && <div role="status" aria-label="Cargando actividad"><Skeleton className="h-28 w-full" /><Skeleton className="mt-4 h-72 w-full" /></div>}
 
       {data && (!data.connected || !data.storage) && (
@@ -119,11 +113,6 @@ export default function Activity({ userId }: { userId: string }) {
           <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Sparkles size={14} aria-hidden="true" />Resumen del día</h2>
           <p className="text-base leading-relaxed">{digest.aiSummary}</p>
         </section>}
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold">{dayLabel(date)}</h2>
-          <p className="text-sm">{digest.issues.length ? "Actividad recuperada" : "Tu actividad"}: <strong>{count} {count === 1 ? "commit" : "commits"}</strong> en <strong>{digest.projects.length} {digest.projects.length === 1 ? "proyecto" : "proyectos"}</strong>.</p>
-          <p className="text-sm text-muted-foreground">Desde las 00:00 hasta las {clock(digest.until)} · @{digest.username} · Hora de Madrid{date < madridDate() && clock(digest.until) === "00:00" ? " del día siguiente" : ""}</p>
-        </div>
         {digest.issues.length > 0 && <div className="notice notice-error" role="alert"><div><strong>Resumen incompleto</strong><ul className="mt-2 list-disc space-y-1 pl-5">{digest.issues.map((message) => <li key={message}>{message}</li>)}</ul></div></div>}
         {!count && <section className="empty-state panel"><h2>{digest.issues.length ? "No se ha podido recuperar actividad" : "Sin commits en este periodo"}</h2><p>{digest.issues.length ? "Reintenta la consulta para completar el resumen." : "No se han encontrado commits tuyos en los repositorios accesibles. El trabajo sin subir a GitHub no aparece aquí."}</p></section>}
         {count > 0 && !projects.length && <p className="text-sm text-muted-foreground" role="status">Ningún proyecto coincide con la búsqueda.</p>}

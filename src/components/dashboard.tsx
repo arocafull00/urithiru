@@ -456,7 +456,7 @@ function Workspace({
               size={14}
               className="text-muted-foreground hidden sm:block"
             />
-            <span>{navigation.find((n) => n.id === section)?.name}</span>
+            <span>{section === "activity" ? "Tu día en GitHub" : navigation.find((n) => n.id === section)?.name}</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="top-private">

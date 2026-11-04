@@ -101,7 +101,7 @@ Configuración en el servidor de Urithiru:
 | `DATABASE_URL` | Conexión Neon para conservar los resúmenes. Ejecuta `pnpm db:migrate` para crear `urithiru_activity`. |
 | `CRON_SECRET` | Secreto aleatorio largo que protege `POST /api/cron/activity`. |
 | `GROQ_API_KEY` | Opcional. Clave gratuita de [Groq](https://console.groq.com/keys) (sin tarjeta) para generar el resumen del día con IA, que se muestra arriba del todo. Se envían a Groq los títulos y mensajes de los commits. Sin clave, el resumen se omite. |
-| `ACTIVITY_AI_MODEL` | Opcional. Modelo de Groq; por defecto `llama-3.3-70b-versatile`. |
+| `ACTIVITY_AI_MODEL` | Opcional. Modelo de Groq; por defecto `openai/gpt-oss-120b`. |
 
 Configuración en **Settings → Secrets and variables → Actions** del repositorio Urithiru:
 

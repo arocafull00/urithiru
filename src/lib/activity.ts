@@ -39,8 +39,9 @@ export async function generateActivity(date: string) {
   // Verify the migration before spending API quota collecting the day's work.
   await sql`SELECT 1 FROM urithiru_activity LIMIT 1`;
   const digest = await collectActivity({ token, username, date });
+  const apiKey = process.env.GROQ_API_KEY?.trim() ?? "";
   digest.aiSummary = await summarizeActivity({
-    apiKey: process.env.GROQ_API_KEY?.trim() ?? "",
+    apiKey,
     model: process.env.ACTIVITY_AI_MODEL?.trim() || undefined,
     digest,
   });
@@ -52,5 +53,7 @@ export async function generateActivity(date: string) {
     WHERE (EXCLUDED.digest->>'until')::timestamptz >= (urithiru_activity.digest->>'until')::timestamptz
       AND (jsonb_array_length(EXCLUDED.digest->'issues') = 0 OR jsonb_array_length(urithiru_activity.digest->'issues') > 0)
     RETURNING digest`;
-  return { digest, saved: rows.length > 0 };
+  // Lets the UI say why the AI summary is missing instead of silently omitting it.
+  const ai = digest.aiSummary ? "ok" : !apiKey ? "disabled" : digest.projects.some((p) => p.commits.length) ? "failed" : "ok";
+  return { digest, saved: rows.length > 0, ai };
 }

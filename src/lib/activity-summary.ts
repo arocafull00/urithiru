@@ -1,6 +1,6 @@
 import type { ActivityDigest } from "./activity-data";
 
-export const DEFAULT_SUMMARY_MODEL = "llama-3.3-70b-versatile";
+export const DEFAULT_SUMMARY_MODEL = "openai/gpt-oss-120b";
 const MAX_PROMPT_CHARS = 12000;
 
 export function buildSummaryPrompt(digest: Pick<ActivityDigest, "date" | "projects">) {
@@ -29,7 +29,7 @@ export async function summarizeActivity({
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model, temperature: 0.3, max_tokens: 400,
+        model, temperature: 0.3, max_tokens: 1000, reasoning_effort: "low",
         messages: [
           {
             role: "system",
