@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useState } from "react";
-import useSWR from "swr";
+import useSWR, { useSWRConfig } from "swr";
 import {
   ArrowDown,
   ArrowUp,
@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "./ui/select";
 import { UserActionsCell, UserPlanCell } from "./user-billing";
+import { DeleteUserDialog } from "./delete-user-dialog";
 import { useDashboard } from "@/stores/dashboard";
 import type {
   ClerkProject,
@@ -54,14 +55,35 @@ const date = (value: number | null) =>
         dateStyle: "medium",
         timeStyle: "short",
       });
+
+function withoutDeletedUser(data: UsersResult, id: string): UsersResult {
+  if (!data.project.billing) return data;
+  const user = data.users.find((user) => user.id === id);
+  if (!user) return data;
+  const ageInDays = (Date.parse(data.fetchedAt) - user.createdAt) / 86400000;
+  return {
+    ...data,
+    users: data.users.filter((user) => user.id !== id),
+    total: Math.max(0, data.total - 1),
+    filteredTotal: Math.max(0, data.filteredTotal - 1),
+    newUsers: {
+      day: Math.max(0, data.newUsers.day - Number(ageInDays <= 1)),
+      week: Math.max(0, data.newUsers.week - Number(ageInDays <= 7)),
+      month: Math.max(0, data.newUsers.month - Number(ageInDays <= 30)),
+    },
+  };
+}
+
 const UserRow = memo(function UserRow({
   user,
   onUpdated,
+  onDeleted,
   showBilling,
   source,
 }: {
   user: DiariamenteUser;
   onUpdated: () => void;
+  onDeleted: (id: string) => void;
   showBilling: boolean;
   source: string;
 }) {
@@ -100,7 +122,10 @@ const UserRow = memo(function UserRow({
       )}
       {showBilling && (
         <td className="users-actions">
-          <UserActionsCell user={user} onUpdated={onUpdated} source={source} />
+          <div className="flex flex-col items-end gap-2">
+            <UserActionsCell user={user} onUpdated={onUpdated} source={source} />
+            <DeleteUserDialog user={user} onDeleted={onDeleted} source={source} />
+          </div>
         </td>
       )}
     </tr>
@@ -275,6 +300,7 @@ function ProjectUsers({
     page: 0,
     orderBy: "-created_at" as UsersOrderBy,
   });
+  const { mutate: mutateCached } = useSWRConfig();
   useEffect(() => {
     const timer = setTimeout(
       () =>
@@ -319,6 +345,28 @@ function ProjectUsers({
   }, [data, key]);
   const current = snapshot ?? data;
   const refresh = useCallback(() => void mutate(), [mutate]);
+  const onDeleted = useCallback(
+    (id: string) => {
+      const state = useDashboard.getState();
+      state.patch({
+        userSnapshots: Object.fromEntries(
+          Object.entries(state.userSnapshots).map(([cachedKey, result]) => [
+            cachedKey,
+            withoutDeletedUser(result, id),
+          ]),
+        ),
+      });
+      void mutateCached<UsersResult>(
+        (key) =>
+          Array.isArray(key) &&
+          typeof key[0] === "string" &&
+          key[0].startsWith("/api/users?"),
+        (result) => result && withoutDeletedUser(result, id),
+        { revalidate: true },
+      );
+    },
+    [mutateCached],
+  );
   const summary = current ?? lastSnapshot;
   const pages = Math.max(
     1,
@@ -543,6 +591,7 @@ function ProjectUsers({
                       key={user.id}
                       user={user}
                       onUpdated={refresh}
+                      onDeleted={onDeleted}
                       showBilling={project.billing}
                       source={new URLSearchParams({
                         project: project.id,

@@ -43,12 +43,18 @@ export const diariamenteBillingConfigured = () =>
   );
 
 async function diariamenteFetch(path: string, init: RequestInit = {}) {
+  const deleting = init.method === "DELETE";
   if (!diariamenteBillingConfigured())
     throw new HttpError(
       503,
-      "Configura DIARIAMENTE_API_URL y DIARIAMENTE_ADMIN_API_SECRET para gestionar la facturación de Diariamente.",
+      "Configura DIARIAMENTE_API_URL y DIARIAMENTE_ADMIN_API_SECRET para gestionar Diariamente.",
     );
   const base = process.env.DIARIAMENTE_API_URL!.replace(/\/$/, "");
+  if (deleting && base !== "https://diariamente.es")
+    throw new HttpError(
+      503,
+      "El borrado requiere la API de producción de Diariamente.",
+    );
   const response = await fetch(`${base}${path}`, {
     ...init,
     cache: "no-store",
@@ -60,9 +66,19 @@ async function diariamenteFetch(path: string, init: RequestInit = {}) {
   if (!response?.ok)
     throw new HttpError(
       502,
-      "Diariamente no ha aceptado la operación de facturación. Revisa la conexión y vuelve a intentarlo.",
+      deleting
+        ? "Diariamente no ha confirmado el borrado. Vuelve a intentarlo para completar la operación."
+        : "Diariamente no ha aceptado la operación de facturación. Revisa la conexión y vuelve a intentarlo.",
     );
   return response.json();
+}
+
+export async function deleteDiariamenteUser(id: string, adminId: string) {
+  const body = await diariamenteFetch(
+    `/api/admin/users/${encodeURIComponent(id)}`,
+    { method: "DELETE", redirect: "error", headers: { "X-Admin-Id": adminId } },
+  );
+  z.object({ deleted: z.literal(true) }).parse(body);
 }
 
 export async function getUsersBilling(ids: string[]) {

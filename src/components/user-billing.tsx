@@ -91,7 +91,7 @@ export const UserActionsCell = memo(function UserActionsCell({
   const [error, setError] = useState<string | null>(null);
   const { billing } = user;
   if (!billing || (billing.role !== "psychologist" && !billing.clinic))
-    return <span className="text-muted-foreground">—</span>;
+    return null;
 
   async function run(update: BillingUpdate) {
     setPending(true);
