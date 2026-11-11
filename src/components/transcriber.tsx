@@ -10,28 +10,40 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useDashboard } from "@/stores/dashboard";
 import {
   transcriptFilename,
   transcriptMarkdown,
+  transcriptPlatform,
+  transcriptTitle,
 } from "@/lib/transcript-markdown";
-import type { Transcript } from "@/lib/types";
+import type { Transcript, TranscriptSource } from "@/lib/types";
 
 export default function Transcriber() {
   const transcripts = useDashboard((s) => s.transcripts);
+  const [source, setSource] = useState<TranscriptSource>("tiktok");
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const platform = source === "youtube" ? "YouTube" : "TikTok";
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    const userId = useDashboard.getState().session?.userId;
     setBusy(true);
     setError("");
     try {
       const res = await fetch("/api/transcribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url, source }),
       });
       const body = await res.json().catch(() => ({}));
       if (res.status === 401)
@@ -42,6 +54,7 @@ export default function Transcriber() {
         );
       if (!res.ok)
         throw new Error(body.error ?? "No se ha podido transcribir el vídeo.");
+      if (!userId || useDashboard.getState().session?.userId !== userId) return;
       useDashboard.getState().addTranscript(body as Transcript);
       setUrl("");
     } catch (e) {
@@ -55,14 +68,33 @@ export default function Transcriber() {
 
   return (
     <div className="space-y-5">
-      <form onSubmit={submit} className="panel p-5 space-y-3">
-        <div>
-          <h2 className="font-semibold">Transcribir un TikTok</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            Pega el enlace de un vídeo público. Se transcribe con Whisper en el
-            plan gratuito de Groq y se guarda en este navegador.
-          </p>
+      <form onSubmit={submit} className="panel p-5 space-y-3" aria-busy={busy}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold">Transcribir un vídeo de {platform}</h2>
+          <Select
+            value={source}
+            disabled={busy}
+            onValueChange={(value) => {
+              setSource(value as TranscriptSource);
+              setUrl("");
+              setError("");
+            }}
+          >
+            <SelectTrigger aria-label="Origen del vídeo">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tiktok">TikTok</SelectItem>
+              <SelectItem value="youtube">YouTube</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          {source === "youtube"
+            ? "Pega el enlace de un vídeo público o un Short. Se obtiene el texto de sus subtítulos, manuales o automáticos, sin clave de API. El vídeo debe tener subtítulos disponibles."
+            : "Pega el enlace de un vídeo público. Se transcribe con Whisper en el plan gratuito de Groq."}
+          {" "}La transcripción se guarda en este navegador.
+        </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             type="url"
@@ -70,8 +102,10 @@ export default function Transcriber() {
             required
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="https://www.tiktok.com/@usuario/video/…"
-            aria-label="Enlace de TikTok"
+            placeholder={source === "youtube"
+              ? "https://www.youtube.com/watch?v=…"
+              : "https://www.tiktok.com/@usuario/video/…"}
+            aria-label={`Enlace de ${platform}`}
             disabled={busy}
           />
           <Button type="submit" disabled={busy || !url.trim()}>
@@ -108,7 +142,7 @@ function TranscriptCard({
   const [copied, setCopied] = useState(false);
   const markdown = () => transcriptMarkdown(t);
   async function copy() {
-    await navigator.clipboard.writeText(markdown());
+    await navigator.clipboard.writeText(t.text.trim());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -125,10 +159,12 @@ function TranscriptCard({
     <details className="panel group" open={open}>
       <summary className="cursor-pointer list-none p-5 space-y-1">
         <p className="font-medium line-clamp-2">
-          {t.description || `TikTok de @${t.author}`}
+          {transcriptTitle(t)}
         </p>
         <p className="text-xs text-muted-foreground">
-          @{t.author}
+          {transcriptPlatform(t)} · {t.source === "youtube"
+            ? t.authorName || "Canal de YouTube"
+            : `@${t.author}`}
           {t.duration != null && ` · ${t.duration} s`}
           {t.language && ` · ${t.language}`}
           {" · "}
@@ -145,7 +181,7 @@ function TranscriptCard({
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => void copy()}>
             {copied ? <Check size={14} /> : <Copy size={14} />}
-            {copied ? "Copiado" : "Copiar Markdown"}
+            {copied ? "Copiado" : "Copiar texto"}
           </Button>
           <Button variant="outline" size="sm" onClick={download}>
             <Download size={14} />
@@ -154,7 +190,7 @@ function TranscriptCard({
           <Button variant="outline" size="sm" asChild>
             <a href={t.url} target="_blank" rel="noreferrer">
               <ExternalLink size={14} />
-              Ver en TikTok
+              Ver en {transcriptPlatform(t)}
             </a>
           </Button>
           <Button

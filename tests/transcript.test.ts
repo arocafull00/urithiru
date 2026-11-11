@@ -51,3 +51,18 @@ test("crea un nombre de archivo limpio sin hashtags ni acentos", () => {
     `tiktok-${t.id}.md`,
   );
 });
+
+test("YouTube: exporta el título, el canal y un nombre de archivo propio", () => {
+  const youtube: Transcript = {
+    ...t, id: "youtube:dQw4w9WgXcQ", source: "youtube",
+    title: "Cómo hacer una aplicación", author: "UCchannel", authorName: "Canal Dev",
+    url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", description: "Una descripción distinta al título.",
+  };
+  const md = transcriptMarkdown(youtube);
+  assert.ok(md.startsWith("# Cómo hacer una aplicación\n"));
+  assert.ok(md.includes("- Autor: Canal Dev\n"));
+  assert.ok(md.includes(youtube.url) && md.includes(youtube.description));
+  assert.ok(!md.includes("TikTok") && !md.includes("@UCchannel"));
+  assert.equal(transcriptFilename(youtube), "youtube-como-hacer-una-aplicacion.md");
+  assert.ok(transcriptMarkdown({ ...youtube, title: "", description: "" }).startsWith("# Vídeo de Canal Dev"));
+});

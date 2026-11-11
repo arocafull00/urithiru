@@ -164,6 +164,7 @@ export async function transcribeTikTok(input: string): Promise<Transcript> {
   const author = item.author?.uniqueId ?? "";
   return {
     id: item.id,
+    source: "tiktok",
     url: `https://www.tiktok.com/@${author}/video/${item.id}`,
     author,
     authorName: item.author?.nickname ?? author,

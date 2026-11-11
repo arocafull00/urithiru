@@ -61,16 +61,22 @@ La columna **Plan** muestra el acceso de cada usuario en Diariamente: paciente, 
 
 Estos datos no salen de Clerk: Urithiru llama a la API de administración de Diariamente (`/api/admin/billing`) con `DIARIAMENTE_API_URL` y el secreto compartido `DIARIAMENTE_ADMIN_API_SECRET`, que debe coincidir con `ADMIN_API_SECRET` en Diariamente. Las operaciones las valida y audita Diariamente con el correo del administrador. Si la API no responde, la lista de usuarios se sigue mostrando con un aviso.
 
-## Transcriptor de TikTok
+## Transcriptor de TikTok y YouTube
 
 La sección **Transcriptor** (`/?view=transcriber`) convierte un vídeo público de TikTok en texto: pega el enlace (también los cortos `vm.tiktok.com`) y pulsa Transcribir. El servidor lee la página pública del vídeo, descarga la versión de menor calidad y la envía a Whisper (`whisper-large-v3-turbo`) en Groq.
 
 - Coste cero: usa el plan gratuito de Groq. Crea una clave en [console.groq.com/keys](https://console.groq.com/keys) y configúrala como `GROQ_API_KEY` (también en Vercel). Si se alcanza el límite gratuito, el panel lo indica.
 - Límite de 25 MB por vídeo, el máximo que acepta Groq en el plan gratuito; suficiente para la mayoría de TikToks.
-- Cada transcripción se puede copiar o descargar como Markdown (fuente, autor, descripción y texto), lista para convertirla en una skill o una nota. Las últimas 50 se guardan solo en este navegador y se borran al cerrar sesión.
+- «Copiar texto» copia únicamente la transcripción, sin título, fuente, URL, autor, fechas ni marcas de tiempo añadidas. La descarga Markdown incluye fuente, autor, descripción y texto. Las últimas 50 se guardan solo en este navegador y se borran al cerrar sesión.
 - Depende de que TikTok permita leer la página y descargar el vídeo. Puede cambiar o bloquearlo sin aviso, especialmente desde las IP de Vercel; en ese caso el error se muestra tal cual. Las publicaciones de fotos y los vídeos privados no se pueden transcribir.
 
 `POST /api/transcribe` con `{ "url": "…" }` exige el mismo permiso de administrador que el resto del panel.
+
+Para **YouTube**, elige ese origen en el formulario y pega un enlace de vídeo (`youtube.com/watch`, `youtu.be`, Shorts, vídeos guardados de directos o enlaces embed). Obtiene los subtítulos disponibles, manuales o automáticos, en el idioma de la primera pista del vídeo, sin traducirlos ni volver a procesar el audio con Whisper. No necesita clave de YouTube ni Groq. El historial es compartido con TikTok y conserva las transcripciones anteriores; los archivos de YouTube se descargan con el prefijo `youtube-` e incluyen título, canal, descripción y texto.
+
+Los vídeos sin subtítulos, privados o restringidos pueden no funcionar. La consulta usa la API no oficial de YouTube mediante [youtube-transcript-plus](https://github.com/ericmmartin/youtube-transcript-plus); YouTube puede bloquear las IP de servidores como Vercel o cambiar sus respuestas. Los fallos se muestran en el formulario y no guardan una transcripción vacía. No se descarga ni transcribe el audio de los vídeos sin subtítulos.
+
+La API acepta `{ "source": "youtube", "url": "…" }` o `{ "source": "tiktok", "url": "…" }`. Omitir `source` mantiene el comportamiento anterior de TikTok. Ambas opciones verifican el permiso de administrador en el servidor y responden sin caché pública.
 
 ## Fuentes de tráfico y límites
 

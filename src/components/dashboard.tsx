@@ -649,7 +649,7 @@ function Workspace({
                 : section === "activity"
                   ? "Actividad · GitHub · Europe/Madrid"
                   : section === "transcriber"
-                    ? "Transcriptor · Whisper en Groq"
+                    ? "Transcriptor · TikTok y YouTube"
                   : data
                   ? `Última lectura: ${new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(data.fetchedAt))}`
                   : "Pendiente de conexión"}

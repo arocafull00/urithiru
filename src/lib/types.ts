@@ -8,7 +8,11 @@ export type Section =
   | "logs"
   | "errors"
   | "settings";
+export type TranscriptSource = "tiktok" | "youtube";
 export type Transcript = {
+  // Older cached TikTok transcripts have no source or title.
+  source?: TranscriptSource;
+  title?: string;
   id: string;
   url: string;
   author: string;

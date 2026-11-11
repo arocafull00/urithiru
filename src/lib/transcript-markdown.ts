@@ -1,10 +1,23 @@
 import type { Transcript } from "./types";
 
+export function transcriptPlatform(t: Transcript) {
+  return t.source === "youtube" ? "YouTube" : "TikTok";
+}
+
+export function transcriptTitle(t: Transcript) {
+  return t.title?.trim() || t.description.split("\n")[0].trim() ||
+    (t.source === "youtube" ? `Vídeo de ${t.authorName || "YouTube"}` : `TikTok de @${t.author}`);
+}
+
+export function transcriptAuthor(t: Transcript) {
+  return t.source === "youtube" ? t.authorName || "Canal de YouTube" : `${t.authorName} (@${t.author})`;
+}
+
 export function transcriptMarkdown(t: Transcript) {
-  const title = t.description.split("\n")[0].trim() || `TikTok de @${t.author}`;
+  const title = transcriptTitle(t);
   const meta = [
     `- Fuente: ${t.url}`,
-    `- Autor: ${t.authorName} (@${t.author})`,
+    `- Autor: ${transcriptAuthor(t)}`,
     t.publishedAt && `- Publicado: ${t.publishedAt.slice(0, 10)}`,
     t.duration != null && `- Duración: ${t.duration} s`,
     t.language && `- Idioma: ${t.language}`,
@@ -24,7 +37,7 @@ export function transcriptMarkdown(t: Transcript) {
 }
 
 export function transcriptFilename(t: Transcript) {
-  const slug = (t.description || t.author)
+  const slug = (t.title || t.description || t.author)
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
@@ -33,5 +46,5 @@ export function transcriptFilename(t: Transcript) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 60)
     .replace(/-+$/, "");
-  return `tiktok-${slug || t.id}.md`;
+  return `${t.source ?? "tiktok"}-${slug || t.id.replace(/[^a-zA-Z0-9_-]/g, "-")}.md`;
 }
