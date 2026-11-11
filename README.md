@@ -61,6 +61,17 @@ La columna **Plan** muestra el acceso de cada usuario en Diariamente: paciente, 
 
 Estos datos no salen de Clerk: Urithiru llama a la API de administración de Diariamente (`/api/admin/billing`) con `DIARIAMENTE_API_URL` y el secreto compartido `DIARIAMENTE_ADMIN_API_SECRET`, que debe coincidir con `ADMIN_API_SECRET` en Diariamente. Las operaciones las valida y audita Diariamente con el correo del administrador. Si la API no responde, la lista de usuarios se sigue mostrando con un aviso.
 
+## Transcriptor de TikTok
+
+La sección **Transcriptor** (`/?view=transcriber`) convierte un vídeo público de TikTok en texto: pega el enlace (también los cortos `vm.tiktok.com`) y pulsa Transcribir. El servidor lee la página pública del vídeo, descarga la versión de menor calidad y la envía a Whisper (`whisper-large-v3-turbo`) en Groq.
+
+- Coste cero: usa el plan gratuito de Groq. Crea una clave en [console.groq.com/keys](https://console.groq.com/keys) y configúrala como `GROQ_API_KEY` (también en Vercel). Si se alcanza el límite gratuito, el panel lo indica.
+- Límite de 25 MB por vídeo, el máximo que acepta Groq en el plan gratuito; suficiente para la mayoría de TikToks.
+- Cada transcripción se puede copiar o descargar como Markdown (fuente, autor, descripción y texto), lista para convertirla en una skill o una nota. Las últimas 50 se guardan solo en este navegador y se borran al cerrar sesión.
+- Depende de que TikTok permita leer la página y descargar el vídeo. Puede cambiar o bloquearlo sin aviso, especialmente desde las IP de Vercel; en ese caso el error se muestra tal cual. Las publicaciones de fotos y los vídeos privados no se pueden transcribir.
+
+`POST /api/transcribe` con `{ "url": "…" }` exige el mismo permiso de administrador que el resto del panel.
+
 ## Fuentes de tráfico y límites
 
 Web Analytics usa la API pública de Vercel (`/v1/query/web-analytics/visits/aggregate`). Los proyectos con Analytics desactivado se muestran como tales; una respuesta desconocida o fallida no se sustituye por cero. La ventana consultable depende del plan. Si Vercel rechaza 30 días, el panel conserva ese error por proyecto.

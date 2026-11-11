@@ -9,6 +9,7 @@ import {
   ArrowDownUp,
   ArrowUpRight,
   Bug,
+  Captions,
   ChartNoAxesCombined,
   Check,
   ChevronRight,
@@ -75,6 +76,9 @@ const Users = dynamic(() => import("./users"), {
 const ActivityView = dynamic(() => import("./activity"), {
   loading: () => <Skeleton className="h-72 w-full" />,
 });
+const Transcriber = dynamic(() => import("./transcriber"), {
+  loading: () => <Skeleton className="h-40 w-full" />,
+});
 const formatNumber = (n: number | null | undefined) =>
   n == null ? "—" : n.toLocaleString("es-ES");
 const navigation = [
@@ -82,6 +86,7 @@ const navigation = [
   { id: "projects", name: "Proyectos", icon: FolderKanban },
   { id: "users", name: "Usuarios", icon: UsersIcon },
   { id: "activity", name: "Actividad", icon: GitCommitHorizontal },
+  { id: "transcriber", name: "Transcriptor", icon: Captions },
   { id: "logs", name: "Logs", icon: Terminal },
   { id: "errors", name: "Errores", icon: CircleAlert },
   { id: "settings", name: "Configuración", icon: Settings2 },
@@ -391,11 +396,13 @@ function Workspace({
   const team = storedTeam || session.defaultTeamId;
   const { theme, setTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const standalone =
+    section === "users" || section === "activity" || section === "transcriber";
   const url = `/api/dashboard?period=${period}&team=${team}`;
   const snapshotKey = `${session.userId}:${team}:${period}`;
   const snapshot = useDashboard((s) => s.snapshots[snapshotKey]);
   const { data, error, mutate, isValidating } = useSWR<DashboardData>(
-    session.vercel && section !== "users" && section !== "activity" ? [url, session.userId] : null,
+    session.vercel && !standalone ? [url, session.userId] : null,
     { fallbackData: snapshot, refreshInterval: 60000, keepPreviousData: false },
   );
   useEffect(() => {
@@ -484,7 +491,7 @@ function Workspace({
               última información disponible.
             </Notice>
           )}
-          {section !== "settings" && section !== "users" && section !== "activity" && (
+          {section !== "settings" && !standalone && (
             <div className="toolbar">
               <div className="flex flex-wrap items-center gap-2">
                 <Select
@@ -578,7 +585,7 @@ function Workspace({
               </div>
             </div>
           )}
-          {error && section !== "users" && section !== "activity" && (
+          {error && !standalone && (
             <Notice error>
               {error.message}.{" "}
               {data
@@ -590,6 +597,8 @@ function Workspace({
             <Users userId={session.userId} teams={session.teams} />
           ) : section === "activity" ? (
             <ActivityView userId={session.userId} />
+          ) : section === "transcriber" ? (
+            <Transcriber />
           ) : !session.vercel && section !== "settings" ? (
             <ConnectionEmpty />
           ) : section === "settings" ? (
@@ -639,7 +648,9 @@ function Workspace({
                 ? "Usuarios · Clerk de producción"
                 : section === "activity"
                   ? "Actividad · GitHub · Europe/Madrid"
-                : data
+                  : section === "transcriber"
+                    ? "Transcriptor · Whisper en Groq"
+                  : data
                   ? `Última lectura: ${new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(data.fetchedAt))}`
                   : "Pendiente de conexión"}
             </span>

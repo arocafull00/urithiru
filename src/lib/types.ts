@@ -1,6 +1,25 @@
 export type Period = 1 | 7 | 30;
 export type Section =
-  "overview" | "projects" | "users" | "activity" | "logs" | "errors" | "settings";
+  | "overview"
+  | "projects"
+  | "users"
+  | "activity"
+  | "transcriber"
+  | "logs"
+  | "errors"
+  | "settings";
+export type Transcript = {
+  id: string;
+  url: string;
+  author: string;
+  authorName: string;
+  description: string;
+  duration: number | null;
+  publishedAt: string | null;
+  language: string | null;
+  text: string;
+  transcribedAt: string;
+};
 export type Metrics = { pageviews: number; visitors: number };
 export type TrafficPoint = Metrics & { timestamp: string };
 export type Analytics = Metrics & { series: TrafficPoint[] };

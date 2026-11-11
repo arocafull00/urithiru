@@ -8,6 +8,7 @@ import type {
   Period,
   UsersResult,
   ClerkProjectsResult,
+  Transcript,
 } from "@/lib/types";
 type State = {
   session: Session | null;
@@ -21,6 +22,7 @@ type State = {
   project: string;
   search: string;
   favorites: string[];
+  transcripts: Transcript[];
   patch: (
     state: Partial<
       Omit<
@@ -31,6 +33,8 @@ type State = {
         | "rememberClerkProjects"
         | "clear"
         | "favorite"
+        | "addTranscript"
+        | "removeTranscript"
       >
     >,
   ) => void;
@@ -39,6 +43,8 @@ type State = {
   rememberClerkProjects: (key: string, data: ClerkProjectsResult) => void;
   clear: () => void;
   favorite: (id: string) => void;
+  addTranscript: (transcript: Transcript) => void;
+  removeTranscript: (id: string) => void;
 };
 const initial = {
   session: null,
@@ -52,6 +58,7 @@ const initial = {
   project: "",
   search: "",
   favorites: [] as string[],
+  transcripts: [] as Transcript[],
 };
 export const useDashboard = create<State>()(
   persist(
@@ -128,6 +135,17 @@ export const useDashboard = create<State>()(
             ? state.favorites.filter((i) => i !== id)
             : [...state.favorites, id],
         })),
+      addTranscript: (transcript) =>
+        set((state) => ({
+          transcripts: [
+            transcript,
+            ...state.transcripts.filter((t) => t.id !== transcript.id),
+          ].slice(0, 50),
+        })),
+      removeTranscript: (id) =>
+        set((state) => ({
+          transcripts: state.transcripts.filter((t) => t.id !== id),
+        })),
       clear: () => set(initial),
     }),
     {
@@ -143,6 +161,7 @@ export const useDashboard = create<State>()(
         period: state.period,
         team: state.team,
         favorites: state.favorites,
+        transcripts: state.transcripts,
       }),
       skipHydration: true,
     },
