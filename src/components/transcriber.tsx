@@ -1,7 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   Check,
+  ChevronDown,
+  ChevronUp,
   Copy,
   Download,
   ExternalLink,
@@ -120,8 +122,8 @@ export default function Transcriber() {
         )}
       </form>
       {transcripts.length ? (
-        transcripts.map((t, i) => (
-          <TranscriptCard key={t.id} transcript={t} open={i === 0} />
+        transcripts.map((t) => (
+          <TranscriptCard key={t.id} transcript={t} />
         ))
       ) : (
         <div className="panel small-empty">
@@ -134,12 +136,12 @@ export default function Transcriber() {
 
 function TranscriptCard({
   transcript: t,
-  open,
 }: {
   transcript: Transcript;
-  open: boolean;
 }) {
   const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const textId = useId();
   const markdown = () => transcriptMarkdown(t);
   async function copy() {
     await navigator.clipboard.writeText(t.text.trim());
@@ -156,29 +158,26 @@ function TranscriptCard({
     URL.revokeObjectURL(link.href);
   }
   return (
-    <details className="panel group" open={open}>
-      <summary className="cursor-pointer list-none p-5 space-y-1">
-        <p className="font-medium line-clamp-2">
-          {transcriptTitle(t)}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {transcriptPlatform(t)} · {t.source === "youtube"
-            ? t.authorName || "Canal de YouTube"
-            : `@${t.author}`}
-          {t.duration != null && ` · ${t.duration} s`}
-          {t.language && ` · ${t.language}`}
-          {" · "}
-          {new Intl.DateTimeFormat("es", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          }).format(new Date(t.transcribedAt))}
-        </p>
-      </summary>
-      <div className="border-t px-5 py-4 space-y-4">
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">
-          {t.text || "Sin voz detectada."}
-        </p>
-        <div className="flex flex-wrap gap-2">
+    <article className="panel">
+      <header className="flex flex-wrap items-start justify-between gap-3 p-5">
+        <div className="min-w-0 flex-1 basis-60 space-y-1">
+          <h3 className="font-medium line-clamp-2 wrap-anywhere">
+            {transcriptTitle(t)}
+          </h3>
+          <p className="text-xs text-muted-foreground wrap-anywhere">
+            {transcriptPlatform(t)} · {t.source === "youtube"
+              ? t.authorName || "Canal de YouTube"
+              : `@${t.author}`}
+            {t.duration != null && ` · ${t.duration} s`}
+            {t.language && ` · ${t.language}`}
+            {" · "}
+            {new Intl.DateTimeFormat("es", {
+              dateStyle: "medium",
+              timeStyle: "short",
+            }).format(new Date(t.transcribedAt))}
+          </p>
+        </div>
+        <div className="ml-auto flex flex-wrap justify-end gap-2">
           <Button variant="outline" size="sm" onClick={() => void copy()}>
             {copied ? <Check size={14} /> : <Copy size={14} />}
             {copied ? "Copiado" : "Copiar texto"}
@@ -202,7 +201,25 @@ function TranscriptCard({
             Borrar
           </Button>
         </div>
+      </header>
+      <div className="border-t px-5 py-4 space-y-4">
+        <p
+          id={textId}
+          className={`whitespace-pre-wrap wrap-anywhere text-sm leading-relaxed ${expanded ? "" : "max-h-[300px] overflow-hidden"}`}
+        >
+          {t.text || "Sin voz detectada."}
+        </p>
+        <Button
+          variant="ghost"
+          size="sm"
+          aria-expanded={expanded}
+          aria-controls={textId}
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {expanded ? "Ver menos" : "Ver transcripción completa"}
+        </Button>
       </div>
-    </details>
+    </article>
   );
 }
