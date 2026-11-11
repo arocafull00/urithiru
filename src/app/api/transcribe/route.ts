@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     if (source !== "tiktok" && source !== "youtube")
       throw new HttpError(400, "Elige TikTok o YouTube como origen del vídeo.");
     return json(await (source === "youtube"
-      ? transcribeYouTube(body.url)
+      ? transcribeYouTube(body.url, fetch, process.env.SUPADATA_API_KEY)
       : transcribeTikTok(body.url)));
   } catch (error) {
     return errorResponse(error);

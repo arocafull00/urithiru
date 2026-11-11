@@ -91,7 +91,7 @@ export default function Transcriber() {
         </div>
         <p className="text-xs text-muted-foreground mt-1">
           {source === "youtube"
-            ? "Pega el enlace de un vídeo público o un Short. Se obtiene el texto de sus subtítulos, manuales o automáticos, sin clave de API. El vídeo debe tener subtítulos disponibles."
+            ? "Pega el enlace de un vídeo público o un Short con subtítulos manuales o automáticos. Se priorizan los subtítulos en español."
             : "Pega el enlace de un vídeo público. Se transcribe con Whisper en el plan gratuito de Groq."}
           {" "}La transcripción se guarda en este navegador.
         </p>

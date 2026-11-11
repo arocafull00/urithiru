@@ -48,7 +48,9 @@ function fixture({
   captionUrl = "https://www.youtube.com/api/timedtext?v=test",
   xml = '<transcript><text start="0" dur="2">Hola &amp; adiós.</text><text start="2" dur="3">Una prueba.</text></transcript>',
   status = 200,
-}: { captions?: boolean; captionUrl?: string; xml?: string; status?: number } = {}) {
+  otherLanguage = false,
+  blocked = false,
+}: { captions?: boolean; captionUrl?: string; xml?: string; status?: number; otherLanguage?: boolean; blocked?: boolean } = {}) {
   const calls: { url: URL; init?: RequestInit }[] = [];
   const transport: typeof fetch = async (input, init) => {
     const url = new URL(String(input));
@@ -60,13 +62,16 @@ function fixture({
       assert.equal(init?.method, "POST");
       assert.equal(JSON.parse(String(init?.body)).videoId, id);
       return Response.json({
-        playabilityStatus: { status: "OK" },
+        playabilityStatus: { status: blocked ? "LOGIN_REQUIRED" : "OK" },
         videoDetails: {
           videoId: id, title: "Vídeo de prueba", author: "Canal de prueba",
           channelId: "UCtest", lengthSeconds: "123", shortDescription: "Descripción del vídeo",
         },
         ...(captions && { captions: { playerCaptionsTracklistRenderer: {
-          captionTracks: [{ baseUrl: captionUrl, languageCode: "es", kind: "asr" }],
+          captionTracks: [
+            ...(otherLanguage ? [{ baseUrl: "https://www.youtube.com/api/timedtext?lang=ar", languageCode: "ar", kind: "asr" }] : []),
+            { baseUrl: captionUrl, languageCode: "es", kind: "asr" },
+          ],
         } } }),
       });
     }
@@ -95,6 +100,18 @@ test("YouTube: obtiene texto y metadatos con subtítulos automáticos sin Groq",
     assert.equal(init?.cache, "no-store");
     assert.ok(init?.signal);
   }
+});
+
+test("YouTube: selecciona español aunque la primera pista sea árabe", async () => {
+  const { transport, calls } = fixture({ otherLanguage: true });
+  const result = await transcribeYouTube(canonical, transport);
+  assert.equal(result.language, "es");
+  assert.equal(calls[2].url.searchParams.get("v"), "test");
+});
+
+test("YouTube: explica el bloqueo de servidores en vez de afirmar que faltan subtítulos", async () => {
+  await assert.rejects(transcribeYouTube(canonical, fixture({ blocked: true }).transport),
+    (e: unknown) => e instanceof HttpError && e.status === 503 && e.message.includes("SUPADATA_API_KEY"));
 });
 
 test("YouTube: informa de subtítulos ausentes y respuestas vacías", async () => {

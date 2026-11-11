@@ -8,6 +8,7 @@ import {
 } from "youtube-transcript-plus";
 import { HttpError } from "./http";
 import type { Transcript } from "./types";
+import { youtubeProviderTranscript } from "./youtube-provider";
 
 const VIDEO_HOSTS = new Set([
   "youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com",
@@ -39,8 +40,11 @@ export function parseYouTubeUrl(input: string) {
 export async function transcribeYouTube(
   input: string,
   transport: typeof fetch = fetch,
+  apiKey = "",
 ): Promise<Transcript> {
   const video = parseYouTubeUrl(input);
+  if (apiKey.trim())
+    return youtubeProviderTranscript(video, apiKey.trim(), transport);
   const signal = AbortSignal.timeout(45000);
   // Validate caption URLs too, and never follow redirects to arbitrary hosts.
   async function youtubeFetch(params: FetchParams) {
@@ -65,12 +69,28 @@ export async function transcribeYouTube(
     return response;
   }
 
+  async function playerFetch(params: FetchParams) {
+    const response = await youtubeFetch(params);
+    if (!response.ok) return response;
+    const data = await response.json();
+    if (data.playabilityStatus?.status === "LOGIN_REQUIRED")
+      throw new HttpError(503, "YouTube bloquea las consultas desde este servidor. Configura SUPADATA_API_KEY para activar el proveedor de subtítulos gratuito.");
+    const list = data.captions?.playerCaptionsTracklistRenderer ?? data.playerCaptionsTracklistRenderer;
+    if (Array.isArray(list?.captionTracks)) {
+      const rank = (track: { languageCode?: string; kind?: string }) =>
+        track.languageCode?.toLowerCase().split("-")[0] === "es"
+          ? track.kind === "asr" ? 1 : 0 : 2;
+      list.captionTracks.sort((a: { languageCode?: string; kind?: string }, b: { languageCode?: string; kind?: string }) => rank(a) - rank(b));
+    }
+    return Response.json(data);
+  }
+
   try {
     const { videoDetails: details, segments } = await fetchTranscript(video.id, {
       videoDetails: true,
       signal,
       videoFetch: youtubeFetch,
-      playerFetch: youtubeFetch,
+      playerFetch,
       transcriptFetch: youtubeFetch,
     });
     const text = segments.map((s) => s.text.trim()).filter(Boolean).join("\n").trim();
@@ -102,7 +122,7 @@ export async function transcribeYouTube(
     if (error instanceof YoutubeTranscriptVideoUnavailableError)
       throw new HttpError(404, "No se puede acceder al vídeo de YouTube. Comprueba que sea público y esté disponible.");
     if (error instanceof YoutubeTranscriptNotAvailableError)
-      throw new HttpError(422, "No se han podido obtener los subtítulos. Puede que no estén disponibles o que YouTube haya bloqueado la consulta desde el servidor.");
+      throw new HttpError(422, "No se han podido leer los subtítulos directamente desde YouTube. Si el vídeo tiene subtítulos, configura SUPADATA_API_KEY para usar el proveedor gratuito desde este servidor.");
     throw new HttpError(502, "No se ha podido conectar con YouTube. Inténtalo de nuevo.");
   }
 }
