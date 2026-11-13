@@ -5,6 +5,7 @@ import { ACQUISITION_CHANNELS, diariamenteSurface } from "@/lib/acquisition";
 import type { Acquisition, Period, Project } from "@/lib/types";
 import { useDashboard } from "@/stores/dashboard";
 import { AcquisitionRow } from "./acquisition-row";
+import { TablePagination, usePagination } from "./table-pagination";
 import { Skeleton } from "./ui/skeleton";
 
 export function AcquisitionProject({ project, team, period, userId }: {
@@ -20,7 +21,6 @@ export function AcquisitionProject({ project, team, period, userId }: {
     userId,
   ], {
     fallbackData: snapshot,
-    refreshInterval: 60000,
     onSuccess: (result) => {
       const state = useDashboard.getState();
       if (JSON.stringify(state.acquisitionSnapshots[cacheKey]) === JSON.stringify(result)) return;
@@ -32,6 +32,7 @@ export function AcquisitionProject({ project, team, period, userId }: {
   });
   const app = diariamenteSurface(project) === "app";
   const measured = data?.rows.some((row) => row.pageviews > 0);
+  const pagination = usePagination(ACQUISITION_CHANNELS, cacheKey);
   return (
     <section className="panel min-w-0">
       <div className="panel-heading">
@@ -45,7 +46,7 @@ export function AcquisitionProject({ project, team, period, userId }: {
       {!data && !error && <Skeleton className="m-4 h-40" />}
       {data && !measured && <p className="px-4 py-6 text-sm text-muted-foreground">Sin visitas medidas en este periodo. El desglose empieza al publicar la nueva medición; el tráfico anterior sigue en las métricas generales.</p>}
       {data && measured && (
-        <div className="overflow-x-auto">
+        <><div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="text-xs text-muted-foreground">
               <tr>
@@ -55,10 +56,12 @@ export function AcquisitionProject({ project, team, period, userId }: {
               </tr>
             </thead>
             <tbody>
-              {ACQUISITION_CHANNELS.map((channel) => <AcquisitionRow key={channel.id} channel={channel.id} label={channel.label} rows={data.rows} android={app} />)}
+              {pagination.rows.map((channel) => <AcquisitionRow key={channel.id} channel={channel.id} label={channel.label} rows={data.rows} android={app} />)}
             </tbody>
           </table>
         </div>
+        <TablePagination label={`orígenes de ${project.name}`} page={pagination.page} total={ACQUISITION_CHANNELS.length} onPageChange={pagination.setPage} />
+        </>
       )}
     </section>
   );

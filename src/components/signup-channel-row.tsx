@@ -13,10 +13,10 @@ export function SignupChannelRow({ channel, label, rows }: {
   return (
     <tr className="border-t border-border">
       <th scope="row" className="px-4 py-3 text-left font-medium">{label}</th>
-      <td className="px-4 py-3 text-right font-semibold tabular-nums">{total.toLocaleString("es-ES")}</td>
-      <td className="px-4 py-3 text-right tabular-nums">{web.toLocaleString("es-ES")}</td>
-      <td className="px-4 py-3 text-right tabular-nums">{android.toLocaleString("es-ES")}</td>
-      <td className="px-4 py-3 text-right tabular-nums">{landing.toLocaleString("es-ES")}</td>
+      <td className="px-4 py-3 font-semibold tabular-nums">{total.toLocaleString("es-ES")}</td>
+      <td className="px-4 py-3 tabular-nums">{web.toLocaleString("es-ES")}</td>
+      <td className="px-4 py-3 tabular-nums">{android.toLocaleString("es-ES")}</td>
+      <td className="px-4 py-3 tabular-nums">{landing.toLocaleString("es-ES")}</td>
     </tr>
   );
 }

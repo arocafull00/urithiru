@@ -1,7 +1,7 @@
 import type { RegisteredUser } from "./types";
 import { HttpError } from "./http";
 
-export const USERS_PAGE_SIZE = 25;
+export { TABLE_PAGE_SIZE as USERS_PAGE_SIZE } from "./pagination";
 const USER_SORT_FIELDS = [
   "first_name",
   "created_at",

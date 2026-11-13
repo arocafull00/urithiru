@@ -7,8 +7,6 @@ import {
   ArrowUp,
   ArrowUpDown,
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   RefreshCw,
   Search,
   Users as UsersIcon,
@@ -30,6 +28,7 @@ import { UserActionsCell, UserPlanCell } from "./user-billing";
 import { DeleteUserDialog } from "./delete-user-dialog";
 import { UserAcquisition } from "./user-acquisition";
 import { SignupSummaryPanel } from "./signup-summary";
+import { TablePagination } from "./table-pagination";
 import { useDashboard } from "@/stores/dashboard";
 import type {
   ClerkProject,
@@ -39,7 +38,7 @@ import type {
   UsersResult,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import type { UsersOrderBy } from "@/lib/user-data";
+import { USERS_PAGE_SIZE, type UsersOrderBy } from "@/lib/user-data";
 
 const sortableColumns = [
   { field: "first_name", label: "Usuario y correo", sortLabel: "nombre de usuario" },
@@ -76,6 +75,76 @@ function withoutDeletedUser(data: UsersResult, id: string): UsersResult {
   };
 }
 
+type UserItemProps = {
+  user: DiariamenteUser;
+  onUpdated: () => void;
+  onDeleted: (id: string) => void;
+  showBilling: boolean;
+  acquisitionStatus: UsersResult["acquisition"];
+  source: string;
+};
+
+const UserCard = memo(function UserCard({
+  user,
+  onUpdated,
+  onDeleted,
+  showBilling,
+  acquisitionStatus,
+  source,
+}: UserItemProps) {
+  const role = user.billing?.role;
+  const roleLabel = !user.billing
+    ? "Perfil no disponible"
+    : role === "patient"
+      ? "Paciente"
+      : role === "psychologist"
+        ? "Psicóloga"
+        : role === "clinic"
+          ? "Clínica"
+          : role === "admin"
+            ? "Administrador"
+            : "Sin perfil";
+  return (
+    <li className="user-card">
+      <div className="user-card-identity">
+        <span className="project-avatar" aria-hidden="true">{user.name.slice(0, 1)}</span>
+        <div className="user-card-name">
+          <strong>{user.name}</strong>
+          <span>{user.email ?? "Sin correo"}</span>
+        </div>
+      </div>
+      {showBilling && <Badge variant="outline" className="user-card-role">{roleLabel}</Badge>}
+      <dl className="user-card-dates">
+        <div>
+          <dt>Fecha de registro</dt>
+          <dd><time dateTime={new Date(user.createdAt).toISOString()}>{date(user.createdAt)}</time></dd>
+        </div>
+        <div>
+          <dt>Último acceso</dt>
+          <dd>{user.lastSignInAt === null ? "Sin accesos" : <time dateTime={new Date(user.lastSignInAt).toISOString()}>{date(user.lastSignInAt)}</time>}</dd>
+        </div>
+      </dl>
+      <details className="user-card-details">
+        <summary>Más detalles<span className="sr-only"> de {user.name}</span></summary>
+        <dl>
+          <div>
+            <dt>Correo</dt>
+            <dd>{!user.email ? "Sin correo" : user.emailVerified ? "Verificado" : "Sin verificar"}</dd>
+          </div>
+          {showBilling && <>
+            <div><dt>Origen del alta</dt><dd><UserAcquisition acquisition={user.acquisition} status={acquisitionStatus} /></dd></div>
+            <div><dt>Plan</dt><dd><UserPlanCell billing={user.billing} /></dd></div>
+          </>}
+        </dl>
+        {showBilling && <div className="user-card-actions">
+          <UserActionsCell user={user} onUpdated={onUpdated} source={source} />
+          <DeleteUserDialog user={user} onDeleted={onDeleted} source={source} />
+        </div>}
+      </details>
+    </li>
+  );
+});
+
 const UserRow = memo(function UserRow({
   user,
   onUpdated,
@@ -83,14 +152,7 @@ const UserRow = memo(function UserRow({
   showBilling,
   acquisitionStatus,
   source,
-}: {
-  user: DiariamenteUser;
-  onUpdated: () => void;
-  onDeleted: (id: string) => void;
-  showBilling: boolean;
-  acquisitionStatus: UsersResult["acquisition"];
-  source: string;
-}) {
+}: UserItemProps) {
   return (
     <tr>
       <td>
@@ -155,7 +217,6 @@ export default function Users({
     [url, userId],
     {
       fallbackData: snapshot,
-      refreshInterval: 60000,
       keepPreviousData: false,
     },
   );
@@ -326,6 +387,7 @@ function ProjectUsers({
     q: filters.query,
     period: String(filters.period),
     page: String(filters.page),
+    pageSize: String(USERS_PAGE_SIZE),
     orderBy: filters.orderBy,
   });
   const url = `/api/users?${params}`;
@@ -343,7 +405,6 @@ function ProjectUsers({
     [url, userId],
     {
       fallbackData: snapshot,
-      refreshInterval: 60000,
       keepPreviousData: false,
     },
   );
@@ -351,7 +412,13 @@ function ProjectUsers({
     if (data) useDashboard.getState().rememberUsers(key, data);
   }, [data, key]);
   const current = snapshot ?? data;
-  const refresh = useCallback(() => void mutate(), [mutate]);
+  const refresh = useCallback(() => {
+    void mutate();
+    void mutateCached([
+      `/api/signup-acquisition?${new URLSearchParams({ project: project.id, team, period: String(filters.period) })}`,
+      userId,
+    ]);
+  }, [mutate, mutateCached, project.id, team, filters.period, userId]);
   const onDeleted = useCallback(
     (id: string) => {
       const state = useDashboard.getState();
@@ -375,10 +442,17 @@ function ProjectUsers({
     [mutateCached],
   );
   const summary = current ?? lastSnapshot;
-  const pages = Math.max(
-    1,
-    Math.ceil((current?.filteredTotal ?? 0) / (current?.pageSize ?? 25)),
-  );
+  if (current) {
+    const lastPage = Math.max(0, Math.ceil(current.filteredTotal / USERS_PAGE_SIZE) - 1);
+    if (filters.page > lastPage) setFilters({ ...filters, page: lastPage });
+  }
+  const emptyMessage = filters.query
+    ? "No hay usuarios que coincidan con esta búsqueda."
+    : filters.period
+      ? "No se han registrado usuarios en este periodo."
+      : filters.page
+        ? "No hay usuarios en esta página. Vuelve a la anterior."
+        : `${project.name} todavía no tiene usuarios registrados.`;
   return (
     <div className="users-screen">
       <div className="users-source">
@@ -392,7 +466,7 @@ function ProjectUsers({
             variant="outline"
             size="sm"
             disabled={isValidating}
-            onClick={() => void mutate()}
+            onClick={refresh}
           >
             <RefreshCw
               size={14}
@@ -413,7 +487,7 @@ function ProjectUsers({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => void mutate()}
+            onClick={refresh}
             disabled={isValidating}
           >
             Reintentar
@@ -487,7 +561,7 @@ function ProjectUsers({
             <h2 id="users-list-title">
               {filters.period ? "Nuevos registros" : "Todos los usuarios"}
             </h2>
-            <p>Pulsa en una cabecera para cambiar el orden.</p>
+            <p className="users-desktop-hint">Pulsa en una cabecera para cambiar el orden.</p>
           </div>
           <UsersIcon size={18} className="text-muted-foreground" />
         </div>
@@ -526,8 +600,33 @@ function ProjectUsers({
             </SelectContent>
           </Select>
         </div>
+        <div className="users-mobile-sort">
+          <label htmlFor="users-mobile-order">Ordenar por</label>
+          <Select value={filters.orderBy} onValueChange={(value) => setFilters((previous) => ({ ...previous, orderBy: value as UsersOrderBy, page: 0 }))}>
+            <SelectTrigger id="users-mobile-order"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="-created_at">Registro: más recientes</SelectItem>
+              <SelectItem value="+created_at">Registro: más antiguos</SelectItem>
+              <SelectItem value="-last_sign_in_at">Acceso: más recientes</SelectItem>
+              <SelectItem value="+last_sign_in_at">Acceso: más antiguos</SelectItem>
+              <SelectItem value="+first_name">Nombre: A a Z</SelectItem>
+              <SelectItem value="-first_name">Nombre: Z a A</SelectItem>
+              <SelectItem value="+email_address">Correo: A a Z</SelectItem>
+              <SelectItem value="-email_address">Correo: Z a A</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="users-mobile-list">
+          {!current && !error && <div className="users-mobile-loading" role="status" aria-label="Cargando usuarios">
+            {Array.from({ length: 5 }, (_, index) => <div key={index} className="user-card"><Skeleton className="h-5 w-40" /><Skeleton className="mt-3 h-4 w-24" /><Skeleton className="mt-4 h-10 w-full" /></div>)}
+          </div>}
+          {current && (current.users.length ? <ul aria-label={`Lista de usuarios de ${project.name}`}>
+            {current.users.map((user) => <UserCard key={user.id} user={user} onUpdated={refresh} onDeleted={onDeleted} showBilling={project.billing} acquisitionStatus={current.acquisition} source={new URLSearchParams({ project: project.id, team }).toString()} />)}
+          </ul> : <p className="small-empty">{emptyMessage}</p>)}
+          {!current && error && <p className="small-empty">No se ha podido cargar la lista de usuarios.</p>}
+        </div>
         <div
-          className="table-scroll"
+          className="table-scroll users-desktop-table"
           role="region"
           aria-label={`Lista de usuarios de ${project.name}`}
           tabIndex={0}
@@ -583,7 +682,7 @@ function ProjectUsers({
             </thead>
             <tbody>
               {!current && !error
-                ? Array.from({ length: 5 }, (_, index) => (
+                ? Array.from({ length: USERS_PAGE_SIZE }, (_, index) => (
                     <tr key={index}>
                       {Array.from(
                         { length: project.billing ? 7 : 4 },
@@ -612,13 +711,7 @@ function ProjectUsers({
               {current && current.users.length === 0 && (
                 <tr>
                   <td colSpan={project.billing ? 7 : 4} className="small-empty">
-                    {filters.query
-                      ? "No hay usuarios que coincidan con esta búsqueda."
-                      : filters.period
-                        ? "No se han registrado usuarios en este periodo."
-                        : filters.page
-                          ? "No hay usuarios en esta página. Vuelve a la anterior."
-                          : `${project.name} todavía no tiene usuarios registrados.`}
+                    {emptyMessage}
                   </td>
                 </tr>
               )}
@@ -632,48 +725,16 @@ function ProjectUsers({
             </tbody>
           </table>
         </div>
-        <div className="users-pagination">
-          <span role="status">
-            {current
+        <TablePagination
+          label="usuarios"
+          page={filters.page}
+          total={current?.filteredTotal}
+          disabled={isValidating}
+          onPageChange={(page) => setFilters((previous) => ({ ...previous, page }))}
+          summary={current
               ? `${number(current.filteredTotal)} ${current.filteredTotal === 1 ? "usuario" : "usuarios"}${filters.query || filters.period ? " con estos filtros" : " en total"}`
               : "Pendiente de consulta"}
-          </span>
-          <div>
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label="Página anterior de usuarios"
-              disabled={filters.page === 0 || isValidating}
-              onClick={() =>
-                setFilters((previous) => ({
-                  ...previous,
-                  page: previous.page - 1,
-                }))
-              }
-            >
-              <ChevronLeft size={14} />
-              Anterior
-            </Button>
-            <span>
-              {filters.page + 1} / {pages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              aria-label="Página siguiente de usuarios"
-              disabled={!current || filters.page + 1 >= pages || isValidating}
-              onClick={() =>
-                setFilters((previous) => ({
-                  ...previous,
-                  page: previous.page + 1,
-                }))
-              }
-            >
-              Siguiente
-              <ChevronRight size={14} />
-            </Button>
-          </div>
-        </div>
+        />
       </section>
       <p className="users-updated" role="status">
         {current

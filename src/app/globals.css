@@ -335,6 +335,9 @@ main#main-content {
   margin-bottom: 24px;
   background: var(--card);
 }
+.overview-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 .metric {
   padding: 21px 22px 18px;
   min-width: 0;
@@ -508,6 +511,7 @@ main#main-content {
   height: 34px;
 }
 .table-scroll {
+  position: relative;
   overflow-x: auto;
 }
 table {
@@ -515,8 +519,12 @@ table {
   border-collapse: collapse;
   white-space: nowrap;
 }
+@layer base {
+  th {
+    text-align: left;
+  }
+}
 th {
-  text-align: left;
   font-weight: 400;
   font-size: 10px;
   color: var(--muted-foreground);
@@ -529,6 +537,10 @@ td {
   padding: 14px 17px;
   border-bottom: 1px solid var(--border);
   font-size: 11px;
+}
+.signup-summary-table thead th,
+.signup-summary-table td {
+  text-align: center;
 }
 tr:last-child td {
   border-bottom: 0;
@@ -1227,6 +1239,124 @@ tbody tr:hover {
 }
 .users-updated {
   margin-top: 14px;
+}
+.users-mobile-list,
+.users-mobile-sort {
+  display: none;
+}
+@media (max-width: 720px) {
+  .users-screen,
+  .users-panel {
+    min-width: 0;
+  }
+  .users-desktop-table,
+  .users-desktop-hint {
+    display: none;
+  }
+  .users-mobile-sort {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 0 14px 14px;
+    font-size: 12px;
+  }
+  .users-mobile-sort > [data-slot="select-trigger"] {
+    flex: 1;
+    min-width: 0;
+    min-height: 44px;
+  }
+  .users-mobile-list {
+    display: block;
+  }
+  .user-card {
+    min-width: 0;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .user-card-identity {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .user-card-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .user-card-name strong,
+  .user-card-name > span {
+    display: block;
+  }
+  .user-card-name strong {
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .user-card-name > span {
+    margin-top: 3px;
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .user-card-role {
+    margin-top: 10px;
+  }
+  .user-card-dates {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+  }
+  .user-card dt {
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .user-card dd {
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+  .user-card-details {
+    margin-top: 8px;
+  }
+  .user-card-details > summary {
+    align-content: center;
+    min-height: 44px;
+    width: fit-content;
+    max-width: 100%;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .user-card-details > summary:hover {
+    color: var(--foreground);
+  }
+  .user-card-details > summary:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+  .user-card-details > dl {
+    display: grid;
+    gap: 14px;
+    padding-bottom: 14px;
+  }
+  .user-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .user-card-actions > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .user-card-actions button,
+  .user-card-actions input {
+    min-height: 44px;
+  }
 }
 @media (max-width: 480px) {
   .users-toolbar .search-field,

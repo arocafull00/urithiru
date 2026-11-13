@@ -21,7 +21,7 @@ export default function Activity({ userId }: { userId: string }) {
   const [generating, setGenerating] = useState<"data" | "summary" | null>(null);
   const url = `/api/activity?${new URLSearchParams({ date })}`;
   const { data, error, mutate, isValidating } = useSWR<ActivityResult>([url, userId], {
-    refreshInterval: 60000, keepPreviousData: false,
+    keepPreviousData: false,
   });
   const digest = data?.digest;
   const projects = digest?.projects.filter((p) => p.repository.toLowerCase().includes(search.toLowerCase())) ?? [];

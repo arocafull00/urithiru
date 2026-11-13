@@ -52,6 +52,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { CopyLogButton } from "@/components/copy-log-button";
 import { AcquisitionOverview } from "@/components/acquisition-overview";
+import { TablePagination, usePagination } from "@/components/table-pagination";
 import { useDashboard, clearPrivateCache } from "@/stores/dashboard";
 import type {
   Dashboard as DashboardData,
@@ -66,6 +67,7 @@ import type {
   Breakdown,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { TABLE_PAGE_SIZE } from "@/lib/pagination";
 
 const TrafficChart = dynamic(() => import("./traffic-chart"), {
   ssr: false,
@@ -176,11 +178,10 @@ export function DashboardApp({ configured }: { configured: boolean }) {
     <SWRConfig
       value={{
         fetcher,
-        revalidateOnFocus: true,
+        revalidateOnFocus: false,
+        revalidateOnReconnect: false,
         dedupingInterval: 15000,
-        errorRetryCount: 1,
-        shouldRetryOnError: (error) =>
-          !(error instanceof ApiError && [401, 403].includes(error.status)),
+        shouldRetryOnError: false,
       }}
     >
       <SessionGate />
@@ -198,7 +199,14 @@ function SessionGate() {
     hydrated && (user || session)
       ? ["/api/session", user?.id ?? session?.userId ?? "session"]
       : null,
-    { refreshInterval: 300000 },
+    {
+      refreshInterval: 300000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      errorRetryCount: 1,
+      shouldRetryOnError: (error) =>
+        !(error instanceof ApiError && [401, 403].includes(error.status)),
+    },
   );
   const clear = useCallback(async () => {
     await clearPrivateCache();
@@ -397,6 +405,7 @@ function Workspace({
   const team = storedTeam || session.defaultTeamId;
   const { theme, setTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const standalone =
     section === "users" || section === "activity" || section === "transcriber";
   const url = `/api/dashboard?period=${period}&team=${team}`;
@@ -404,7 +413,7 @@ function Workspace({
   const snapshot = useDashboard((s) => s.snapshots[snapshotKey]);
   const { data, error, mutate, isValidating } = useSWR<DashboardData>(
     session.vercel && !standalone ? [url, session.userId] : null,
-    { fallbackData: snapshot, refreshInterval: 60000, keepPreviousData: false },
+    { fallbackData: snapshot, keepPreviousData: false },
   );
   useEffect(() => {
     if (data) useDashboard.getState().remember(snapshotKey, data);
@@ -413,6 +422,25 @@ function Workspace({
     document.title = `${navigation.find((n) => n.id === section)?.name ?? "Vista general"} · Urithiru`;
   }, [section]);
   const { mutate: mutateAll } = useSWRConfig();
+  const refresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        mutate(),
+        mutateAll((key) => {
+          if (!Array.isArray(key) || key[1] !== session.userId) return false;
+          const [path, query] = String(key[0]).split("?");
+          if (!["/api/acquisition", "/api/signup-acquisition", "/api/analytics", "/api/logs"].includes(path)) return false;
+          const params = new URLSearchParams(query);
+          return params.get("team") === team &&
+            params.get("period") === String(period) &&
+            (!project || params.get("project") === project);
+        }),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const clerk = useClerk();
   useEffect(() => {
     if (error instanceof ApiError && [401, 403].includes(error.status)) {
@@ -567,21 +595,14 @@ function Workspace({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    void mutate();
-                    void mutateAll(
-                      (key) =>
-                        Array.isArray(key) &&
-                        String(key[0]).startsWith("/api/logs"),
-                    );
-                  }}
-                  disabled={isValidating}
+                  onClick={() => void refresh()}
+                  disabled={isValidating || refreshing}
                 >
                   <RefreshCw
                     size={14}
-                    className={cn(isValidating && "animate-spin")}
+                    className={cn((isValidating || refreshing) && "animate-spin")}
                   />
-                  {isValidating ? "Actualizando" : "Actualizar"}
+                  {isValidating || refreshing ? "Actualizando" : "Actualizar"}
                 </Button>
               </div>
             </div>
@@ -698,9 +719,6 @@ function Overview({
   const visible = project ? [project] : data.projects;
   const available = visible.filter((p) => p.analytics);
   const active = available.filter((p) => (p.analytics?.pageviews ?? 0) > 0);
-  const failures = visible.filter(
-    (p) => p.deploymentState === "ERROR" || p.analyticsError,
-  );
   const pageviews = available.reduce((n, p) => n + p.analytics!.pageviews, 0);
   const visitors = available.reduce((n, p) => n + p.analytics!.visitors, 0);
   const map = new Map<string, TrafficPoint>();
@@ -723,7 +741,7 @@ function Overview({
   const hasData = available.length > 0;
   return (
     <>
-      <div className="metrics-strip">
+      <div className="metrics-strip overview-metrics">
         <Metric
           label="Páginas vistas"
           value={hasData ? pageviews : null}
@@ -739,18 +757,6 @@ function Overview({
               : "Suma; no deduplicada entre sitios"
           }
           icon={<Activity size={16} />}
-        />
-        <Metric
-          label="Proyectos con tráfico"
-          value={hasData ? active.length : null}
-          hint="Con visitas en este periodo"
-          icon={<FolderKanban size={16} />}
-        />
-        <Metric
-          label="Fuentes con incidencias"
-          value={failures.length}
-          hint="Despliegues o consultas fallidas"
-          icon={<CircleAlert size={16} />}
         />
       </div>
       <AcquisitionOverview projects={visible} team={team} period={period} userId={session.userId} />
@@ -1004,6 +1010,7 @@ function Projects({
         ? a.name.localeCompare(b.name)
         : (b.analytics?.pageviews ?? -1) - (a.analytics?.pageviews ?? -1),
     );
+  const pagination = usePagination(rows, JSON.stringify([teamSlug, search, sort, onlyFavorites, onlyActive]));
   return (
     <section className="panel projects-panel">
       <div className="panel-heading">
@@ -1068,7 +1075,7 @@ function Projects({
             </tr>
           </thead>
           <tbody>
-            {(compact ? rows.slice(0, 8) : rows).map((p) => (
+            {pagination.rows.map((p) => (
               <ProjectRow key={p.id} project={p} teamSlug={teamSlug} />
             ))}
           </tbody>
@@ -1081,7 +1088,8 @@ function Projects({
             : "Este equipo todavía no tiene proyectos."}
         </div>
       )}
-      {compact && rows.length > 8 && (
+      <TablePagination label="proyectos" page={pagination.page} total={rows.length} onPageChange={pagination.setPage} />
+      {compact && rows.length > TABLE_PAGE_SIZE && (
         <button className="panel-link" onClick={() => navigate("projects")}>
           Ver los {rows.length} proyectos
           <ArrowUpRight size={14} />
@@ -1129,7 +1137,7 @@ function ProjectDetails({
         { title: "Países", rows: data?.countries },
         { title: "Dispositivos", rows: data?.devices },
       ].map((group) => (
-        <section className="panel" key={group.title}>
+        <section className="panel" key={`${team}:${project.id}:${period}:${group.title}`}>
           <div className="panel-heading">
             <h2>{group.title}</h2>
             <span className="text-xs text-muted-foreground">
@@ -1139,17 +1147,19 @@ function ProjectDetails({
           {!group.rows ? (
             <Skeleton className="h-36 m-4" />
           ) : (
-            <BreakdownRows rows={group.rows} />
+            <BreakdownRows rows={group.rows} label={group.title} />
           )}
         </section>
       ))}
     </div>
   );
 }
-function BreakdownRows({ rows }: { rows: Breakdown[] }) {
+function BreakdownRows({ rows, label }: { rows: Breakdown[]; label: string }) {
+  const pagination = usePagination(rows);
   return (
+    <>
     <div className="breakdown-rows">
-      {rows.slice(0, 10).map((r, i) => (
+      {pagination.rows.map((r, i) => (
         <div key={`${r.label}-${i}`}>
           <span title={r.label}>{r.label}</span>
           <strong>{formatNumber(r.pageviews)}</strong>
@@ -1159,6 +1169,8 @@ function BreakdownRows({ rows }: { rows: Breakdown[] }) {
         <div className="small-empty">Sin actividad en este periodo.</div>
       )}
     </div>
+    <TablePagination label={label} page={pagination.page} total={rows.length} onPageChange={pagination.setPage} />
+    </>
   );
 }
 
@@ -1196,7 +1208,6 @@ function Logs({
       `/api/logs?team=${team}&period=${period}&project=${projectId}&errors=${errorsOnly ? 1 : 0}`,
       session.userId,
     ],
-    { refreshInterval: 60000 },
   );
   const logs = (data?.logs ?? []).filter(
     (l) =>
@@ -1207,6 +1218,7 @@ function Logs({
         .includes(search.toLowerCase()),
   );
   const failed = projects.filter((p) => p.deploymentState === "ERROR");
+  const pagination = usePagination(logs, JSON.stringify([session.userId, team, projectId, period, errorsOnly, search, level, provider]));
   return (
     <div className="logs-section">
       {errorsOnly && failed.length > 0 && (
@@ -1290,7 +1302,7 @@ function Logs({
           </div>
         ) : logs.length ? (
           <div className="log-list">
-            {logs.slice(0, compact ? 5 : 1000).map((log) => (
+            {pagination.rows.map((log) => (
               <div key={`${log.projectId}:${log.id}`}>
                 <div className="log-row-container">
                   <button
@@ -1392,6 +1404,7 @@ function Logs({
             </p>
           </div>
         )}
+        {data && <TablePagination label={errorsOnly ? "errores" : "logs"} page={pagination.page} total={logs.length} onPageChange={pagination.setPage} />}
         {data?.truncated && (
           <Notice>
             La consulta alcanzó su límite de eventos. Filtra por proyecto para
