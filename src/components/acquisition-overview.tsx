@@ -1,6 +1,7 @@
 import { diariamenteSurface } from "@/lib/acquisition";
 import type { Period, Project } from "@/lib/types";
 import { AcquisitionProject } from "./acquisition-project";
+import { SignupSummaryPanel } from "./signup-summary";
 
 export function AcquisitionOverview({ projects, team, period, userId }: {
   projects: Project[];
@@ -9,6 +10,7 @@ export function AcquisitionOverview({ projects, team, period, userId }: {
   userId: string;
 }) {
   const sites = projects.filter((project) => diariamenteSurface(project));
+  const app = sites.find((project) => diariamenteSurface(project) === "app");
   if (!sites.length) return null;
   return (
     <section className="space-y-3" aria-labelledby="diariamente-acquisition-title">
@@ -24,6 +26,7 @@ export function AcquisitionOverview({ projects, team, period, userId }: {
         {" "}Android identifica la app de Google Play; un navegador en Android cuenta como web. La landing solo mide web.
         {" "}El origen se detecta por utm_source o la web de procedencia. Si una red oculta ambos, o el origen se pierde al instalar desde Play Store, figura como sin origen.
       </p>
+      {app && <SignupSummaryPanel projectId={app.id} team={team} period={period} userId={userId} />}
     </section>
   );
 }

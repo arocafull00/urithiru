@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
   Acquisition,
+  SignupSummary,
   Dashboard,
   Session,
   Section,
@@ -15,6 +16,7 @@ type State = {
   session: Session | null;
   snapshots: Record<string, Dashboard>;
   acquisitionSnapshots: Record<string, Acquisition>;
+  signupSnapshots: Record<string, SignupSummary>;
   userSnapshots: Record<string, UsersResult>;
   clerkProjects: Record<string, ClerkProjectsResult>;
   usersProject: string;
@@ -52,6 +54,7 @@ const initial = {
   session: null,
   snapshots: {},
   acquisitionSnapshots: {},
+  signupSnapshots: {},
   userSnapshots: {},
   clerkProjects: {},
   usersProject: "",
@@ -158,6 +161,7 @@ export const useDashboard = create<State>()(
         session: state.session,
         snapshots: state.snapshots,
         acquisitionSnapshots: state.acquisitionSnapshots,
+        signupSnapshots: state.signupSnapshots,
         userSnapshots: state.userSnapshots,
         clerkProjects: state.clerkProjects,
         usersProject: state.usersProject,

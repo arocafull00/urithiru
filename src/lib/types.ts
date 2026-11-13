@@ -56,6 +56,20 @@ export type Acquisition = {
     visitors: number;
   }[];
 };
+export type SignupAttribution = {
+  channel: "linkedin" | "instagram" | "facebook" | "web" | null;
+  platform: "web" | "android";
+  landingHost: string | null;
+  registeredAt: string;
+};
+export type SignupSummary = {
+  rows: {
+    channel: SignupAttribution["channel"];
+    platform: SignupAttribution["platform"] | null;
+    landingHost: string | null;
+    signups: number;
+  }[];
+};
 export type Details = {
   pages: Breakdown[];
   domains: Breakdown[];
@@ -133,7 +147,7 @@ export type UserBilling = {
 export type BillingUpdate =
   | { action: "lifetime"; enabled: boolean }
   | { action: "clinic-price"; monthlyPriceCents: number };
-export type DiariamenteUser = RegisteredUser & { billing: UserBilling | null };
+export type DiariamenteUser = RegisteredUser & { billing: UserBilling | null; acquisition?: SignupAttribution | null };
 export type ClerkProject = {
   id: string;
   name: string;
@@ -150,6 +164,7 @@ export type UsersResult = {
   project: ClerkProject;
   users: DiariamenteUser[];
   billing: "ok" | "unconfigured" | "error" | "unsupported";
+  acquisition?: "ok" | "unconfigured" | "error" | "unsupported";
   total: number;
   newUsers: { day: number; week: number; month: number };
   filteredTotal: number;

@@ -6,6 +6,7 @@ import {
 } from "./diariamente-billing";
 import { HttpError } from "./http";
 import { getClerkConnection } from "./clerk-projects";
+import { getUsersAcquisition } from "./signup-acquisition";
 import { registeredUser, USERS_PAGE_SIZE, usersQuery } from "./user-data";
 import type { UsersOrderBy } from "./user-data";
 import type { UsersResult } from "./types";
@@ -42,7 +43,10 @@ export async function getUsers(
             )
             .catch(() => null)
         : Promise.resolve(undefined);
-    const [list, total, day, week, month, billing] = await Promise.all([
+    const pageAcquisition = project.billing && diariamenteBillingConfigured()
+      ? pageList.then((result) => getUsersAcquisition(result.data.map((user) => user.id))).catch(() => null)
+      : Promise.resolve(undefined);
+    const [list, total, day, week, month, billing, acquisition] = await Promise.all([
       pageList,
       client.users.getCount(),
       client.users.getUserList({ limit: 1, createdAtAfter: now - 86400000 }),
@@ -55,12 +59,14 @@ export async function getUsers(
         createdAtAfter: now - 30 * 86400000,
       }),
       pageBilling,
+      pageAcquisition,
     ]);
     return {
       project,
       users: list.data.map((user) => ({
         ...registeredUser(user),
         billing: billing?.get(user.id) ?? null,
+        acquisition: acquisition?.get(user.id) ?? null,
       })),
       billing: !project.billing
         ? "unsupported"
@@ -69,6 +75,7 @@ export async function getUsers(
           : billing
             ? "ok"
             : "error",
+      acquisition: !project.billing ? "unsupported" : acquisition === undefined ? "unconfigured" : acquisition ? "ok" : "error",
       total,
       newUsers: {
         day: day.totalCount,

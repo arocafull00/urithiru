@@ -42,12 +42,12 @@ export const diariamenteBillingConfigured = () =>
     process.env.DIARIAMENTE_API_URL && process.env.DIARIAMENTE_ADMIN_API_SECRET,
   );
 
-async function diariamenteFetch(path: string, init: RequestInit = {}) {
+export async function diariamenteFetch(path: string, init: RequestInit = {}) {
   const deleting = init.method === "DELETE";
   if (!diariamenteBillingConfigured())
     throw new HttpError(
       503,
-      "Configura DIARIAMENTE_API_URL y DIARIAMENTE_ADMIN_API_SECRET para gestionar Diariamente.",
+      "Configura DIARIAMENTE_API_URL y DIARIAMENTE_ADMIN_API_SECRET para conectar Diariamente.",
     );
   const base = process.env.DIARIAMENTE_API_URL!.replace(/\/$/, "");
   if (deleting && base !== "https://diariamente.es")
@@ -68,7 +68,7 @@ async function diariamenteFetch(path: string, init: RequestInit = {}) {
       502,
       deleting
         ? "Diariamente no ha confirmado el borrado. Vuelve a intentarlo para completar la operación."
-        : "Diariamente no ha aceptado la operación de facturación. Revisa la conexión y vuelve a intentarlo.",
+        : "Diariamente no ha aceptado la operación. Revisa la conexión y vuelve a intentarlo.",
     );
   return response.json();
 }

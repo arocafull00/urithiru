@@ -28,6 +28,8 @@ import {
 } from "./ui/select";
 import { UserActionsCell, UserPlanCell } from "./user-billing";
 import { DeleteUserDialog } from "./delete-user-dialog";
+import { UserAcquisition } from "./user-acquisition";
+import { SignupSummaryPanel } from "./signup-summary";
 import { useDashboard } from "@/stores/dashboard";
 import type {
   ClerkProject,
@@ -79,12 +81,14 @@ const UserRow = memo(function UserRow({
   onUpdated,
   onDeleted,
   showBilling,
+  acquisitionStatus,
   source,
 }: {
   user: DiariamenteUser;
   onUpdated: () => void;
   onDeleted: (id: string) => void;
   showBilling: boolean;
+  acquisitionStatus: UsersResult["acquisition"];
   source: string;
 }) {
   return (
@@ -115,6 +119,9 @@ const UserRow = memo(function UserRow({
               : "Sin verificar"}
         </Badge>
       </td>
+      {showBilling && (
+        <td><UserAcquisition acquisition={user.acquisition} status={acquisitionStatus} /></td>
+      )}
       {showBilling && (
         <td>
           <UserPlanCell billing={user.billing} />
@@ -469,6 +476,7 @@ function ProjectUsers({
           </div>
         ))}
       </div>
+      {project.billing && <SignupSummaryPanel projectId={project.id} team={team} period={filters.period} userId={userId} />}
       <section
         className="panel users-panel"
         aria-labelledby="users-list-title"
@@ -564,6 +572,7 @@ function ProjectUsers({
                     </th>
                   );
                 })}
+                {project.billing && <th scope="col">Origen del alta</th>}
                 {project.billing && <th scope="col">Plan</th>}
                 {project.billing && (
                   <th scope="col" className="users-actions">
@@ -577,7 +586,7 @@ function ProjectUsers({
                 ? Array.from({ length: 5 }, (_, index) => (
                     <tr key={index}>
                       {Array.from(
-                        { length: project.billing ? 6 : 4 },
+                        { length: project.billing ? 7 : 4 },
                         (_, cell) => (
                           <td key={cell}>
                             <Skeleton className="h-5 w-24" />
@@ -593,6 +602,7 @@ function ProjectUsers({
                       onUpdated={refresh}
                       onDeleted={onDeleted}
                       showBilling={project.billing}
+                      acquisitionStatus={current?.acquisition}
                       source={new URLSearchParams({
                         project: project.id,
                         team,
@@ -601,7 +611,7 @@ function ProjectUsers({
                   ))}
               {current && current.users.length === 0 && (
                 <tr>
-                  <td colSpan={project.billing ? 6 : 4} className="small-empty">
+                  <td colSpan={project.billing ? 7 : 4} className="small-empty">
                     {filters.query
                       ? "No hay usuarios que coincidan con esta búsqueda."
                       : filters.period
@@ -614,7 +624,7 @@ function ProjectUsers({
               )}
               {!current && error && (
                 <tr>
-                  <td colSpan={project.billing ? 6 : 4} className="small-empty">
+                  <td colSpan={project.billing ? 7 : 4} className="small-empty">
                     No se ha podido cargar la lista de usuarios.
                   </td>
                 </tr>
