@@ -48,6 +48,14 @@ export type Dashboard = {
   teamSlug: string;
 };
 export type Breakdown = Metrics & { label: string };
+export type Acquisition = {
+  rows: {
+    channel: "linkedin" | "instagram" | "facebook" | "web";
+    platform: "web" | "android";
+    pageviews: number;
+    visitors: number;
+  }[];
+};
 export type Details = {
   pages: Breakdown[];
   domains: Breakdown[];

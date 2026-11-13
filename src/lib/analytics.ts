@@ -43,6 +43,17 @@ export function splitHost(path: string) {
     ? { host: match[1].toLowerCase(), path: match[2] ?? "/" }
     : { host: null, path };
 }
+export function acquisitionPages(pages: Breakdown[]): Breakdown[] {
+  const totals = new Map<string, Breakdown>();
+  for (const page of pages) {
+    const label = page.label.replace(/^\/__acquisition\/(web|android)\/(linkedin|instagram|facebook|web)(\/.*)$/, "$3");
+    const current = totals.get(label) ?? { label, pageviews: 0, visitors: 0 };
+    current.pageviews += page.pageviews;
+    current.visitors += page.visitors;
+    totals.set(label, current);
+  }
+  return [...totals.values()].sort((a, b) => b.pageviews - a.pageviews);
+}
 export function domainBreakdown(pages: Breakdown[]): Breakdown[] {
   const totals = new Map<string, Breakdown>();
   for (const page of pages) {

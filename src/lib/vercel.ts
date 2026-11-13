@@ -1,6 +1,7 @@
 import "server-only";
 import { HttpError } from "./http";
 import {
+  acquisitionPages,
   dateRange,
   domainBreakdown,
   mapConcurrent,
@@ -187,7 +188,7 @@ export async function getDetails(
     }),
   );
   return {
-    pages: result[0].map((page) => {
+    pages: acquisitionPages(result[0]).map((page) => {
       const { host, path } = splitHost(page.label);
       return host ? { ...page, label: `${host}${path}` } : page;
     }),

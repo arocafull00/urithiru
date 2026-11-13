@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CopyLogButton } from "@/components/copy-log-button";
+import { AcquisitionOverview } from "@/components/acquisition-overview";
 import { useDashboard, clearPrivateCache } from "@/stores/dashboard";
 import type {
   Dashboard as DashboardData,
@@ -752,6 +753,7 @@ function Overview({
           icon={<CircleAlert size={16} />}
         />
       </div>
+      <AcquisitionOverview projects={visible} team={team} period={period} userId={session.userId} />
       <div className="overview-grid">
         <section className="panel traffic-panel">
           <div className="panel-heading">

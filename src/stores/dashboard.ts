@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type {
+  Acquisition,
   Dashboard,
   Session,
   Section,
@@ -13,6 +14,7 @@ import type {
 type State = {
   session: Session | null;
   snapshots: Record<string, Dashboard>;
+  acquisitionSnapshots: Record<string, Acquisition>;
   userSnapshots: Record<string, UsersResult>;
   clerkProjects: Record<string, ClerkProjectsResult>;
   usersProject: string;
@@ -49,6 +51,7 @@ type State = {
 const initial = {
   session: null,
   snapshots: {},
+  acquisitionSnapshots: {},
   userSnapshots: {},
   clerkProjects: {},
   usersProject: "",
@@ -154,6 +157,7 @@ export const useDashboard = create<State>()(
       partialize: (state) => ({
         session: state.session,
         snapshots: state.snapshots,
+        acquisitionSnapshots: state.acquisitionSnapshots,
         userSnapshots: state.userSnapshots,
         clerkProjects: state.clerkProjects,
         usersProject: state.usersProject,
