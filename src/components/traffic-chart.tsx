@@ -20,7 +20,6 @@ export default function TrafficChart({
     return (
       <div className="chart-empty">
         <p>Aún no hay tráfico en este periodo.</p>
-        <span>Las visitas aparecerán aquí cuando Vercel las registre.</span>
       </div>
     );
   const format = (value: string) =>

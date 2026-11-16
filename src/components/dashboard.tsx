@@ -5,16 +5,11 @@ import useSWR, { SWRConfig, useSWRConfig } from "swr";
 import { SignIn, UserButton, useClerk, useUser } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import {
-  Activity,
   ArrowDownUp,
   ArrowUpRight,
-  Bug,
   Captions,
-  ChartNoAxesCombined,
-  Check,
   ChevronRight,
   CircleAlert,
-  Database,
   ExternalLink,
   FolderKanban,
   GitCommitHorizontal,
@@ -22,15 +17,11 @@ import {
   LogOut,
   Menu,
   Moon,
-  RefreshCw,
   Search,
   Settings2,
-  ShieldCheck,
-  SlidersHorizontal,
   Star,
   Sun,
   Terminal,
-  Unplug,
   Users as UsersIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -133,9 +124,6 @@ function navigate(section: Section, project = "") {
 function Brand() {
   return (
     <span className="brand">
-      <span className="brand-symbol">
-        <Activity size={18} strokeWidth={2} />
-      </span>
       urithiru<span className="brand-dot">.</span>
     </span>
   );
@@ -152,7 +140,6 @@ function Notice({
       role={error ? "alert" : "status"}
       className={cn("notice", error && "notice-error")}
     >
-      <CircleAlert size={16} className="shrink-0" />
       <div>{children}</div>
     </div>
   );
@@ -265,18 +252,11 @@ function SessionGate() {
       <div className="auth-page">
         <Brand />
         <div className="auth-intro">
-          <Badge variant="outline">
-            <ShieldCheck size={12} /> Espacio privado
-          </Badge>
           <h1>
             Todos tus proyectos.
             <br />
             Un solo lugar.
           </h1>
-          <p>
-            Tráfico, despliegues y errores, con el contexto que necesitas para
-            actuar.
-          </p>
         </div>
         <SignIn routing="hash" />
       </div>
@@ -332,27 +312,13 @@ function LoadingShell() {
   );
 }
 
-function Sidebar({
-  session,
-  onNavigate,
-}: {
-  session: Session;
-  onNavigate?: () => void;
-}) {
+function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const section = useDashboard((s) => s.section);
   const clerk = useClerk();
   const { mutate } = useSWRConfig();
   return (
     <div className="sidebar-inner">
       <Brand />
-      <div className="workspace-label">
-        <span className="avatar">{session.name.charAt(0).toUpperCase()}</span>
-        <div>
-          <strong>Mi espacio</strong>
-          <span>Administrador</span>
-        </div>
-        <ShieldCheck size={15} />
-      </div>
       <nav aria-label="Navegación principal">
         {navigation.map((item) => (
           <button
@@ -366,14 +332,10 @@ function Sidebar({
           >
             <item.icon size={17} />
             {item.name}
-            {section === item.id && <span className="nav-marker" />}
           </button>
         ))}
       </nav>
       <div className="sidebar-bottom">
-        <div className="private-label">
-          <ShieldCheck size={14} /> Solo tú tienes acceso
-        </div>
         <button
           className="nav-link"
           onClick={async () => {
@@ -459,7 +421,7 @@ function Workspace({
   return (
     <div className="app-shell">
       <aside className="desktop-sidebar">
-        <Sidebar session={session} />
+        <Sidebar />
       </aside>
       <div className="workspace">
         <header className="topbar">
@@ -479,26 +441,12 @@ function Workspace({
                 <SheetTitle className="sr-only">
                   Navegación de Urithiru
                 </SheetTitle>
-                <Sidebar
-                  session={session}
-                  onNavigate={() => setMenuOpen(false)}
-                />
+                <Sidebar onNavigate={() => setMenuOpen(false)} />
               </SheetContent>
             </Sheet>
-            <span className="text-muted-foreground hidden sm:inline">
-              Mi espacio
-            </span>
-            <ChevronRight
-              size={14}
-              className="text-muted-foreground hidden sm:block"
-            />
-            <span>{section === "activity" ? "Tu día en GitHub" : navigation.find((n) => n.id === section)?.name}</span>
+            <span className="topbar-title">{section === "activity" ? "Tu día en GitHub" : navigation.find((n) => n.id === section)?.name}</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="top-private">
-              <span className="status-dot" />
-              Privado
-            </span>
             <Button
               variant="ghost"
               size="icon"
@@ -562,7 +510,6 @@ function Workspace({
                     aria-label="Filtrar por proyecto"
                     className="project-select"
                   >
-                    <FolderKanban size={14} />
                     <SelectValue placeholder="Todos los proyectos" />
                   </SelectTrigger>
                   <SelectContent>
@@ -598,10 +545,6 @@ function Workspace({
                   onClick={() => void refresh()}
                   disabled={isValidating || refreshing}
                 >
-                  <RefreshCw
-                    size={14}
-                    className={cn((isValidating || refreshing) && "animate-spin")}
-                  />
                   {isValidating || refreshing ? "Actualizando" : "Actualizar"}
                 </Button>
               </div>
@@ -664,19 +607,12 @@ function Workspace({
             </>
           )}
           <footer className="page-footer">
-            <span>
-              <span className="status-dot" />
-              {section === "users"
-                ? "Usuarios · Clerk de producción"
-                : section === "activity"
-                  ? "Actividad · GitHub · Europe/Madrid"
-                  : section === "transcriber"
-                    ? "Transcriptor · TikTok y YouTube"
-                  : data
-                  ? `Última lectura: ${new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(data.fetchedAt))}`
-                  : "Pendiente de conexión"}
-            </span>
-            <span>Urithiru · Espacio personal</span>
+            {data && !standalone && (
+              <span>
+                Última lectura:{" "}
+                {new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(data.fetchedAt))}
+              </span>
+            )}
           </footer>
         </main>
       </div>
@@ -687,9 +623,6 @@ function Workspace({
 function ConnectionEmpty() {
   return (
     <div className="empty-state">
-      <span className="empty-icon">
-        <Unplug size={26} />
-      </span>
       <h2>Tu espacio está listo para conectar</h2>
       <p>
         Conecta tu cuenta de Vercel para reunir el tráfico y los logs de tus
@@ -697,7 +630,6 @@ function ConnectionEmpty() {
       </p>
       <Button onClick={() => navigate("settings")}>
         Configurar Vercel
-        <ArrowUpRight size={15} />
       </Button>
     </div>
   );
@@ -746,41 +678,25 @@ function Overview({
           label="Páginas vistas"
           value={hasData ? pageviews : null}
           hint={`${available.length} de ${visible.length} proyectos con datos`}
-          icon={<ChartNoAxesCombined size={16} />}
         />
         <Metric
           label={project ? "Visitantes" : "Visitantes por proyecto"}
           value={hasData ? visitors : null}
-          hint={
-            project
-              ? "Según Vercel Analytics"
-              : "Suma; no deduplicada entre sitios"
-          }
-          icon={<Activity size={16} />}
+          hint={project ? undefined : "Suma; no deduplicada entre sitios"}
         />
       </div>
       <AcquisitionOverview projects={visible} team={team} period={period} userId={session.userId} />
       <div className="overview-grid">
         <section className="panel traffic-panel">
           <div className="panel-heading">
-            <div>
-              <h2>Evolución del tráfico</h2>
-              <p>
-                Páginas vistas{" "}
-                {project ? `en ${project.name}` : "en todos los proyectos"}
-              </p>
-            </div>
+            <h2>Páginas vistas</h2>
             <Badge variant="outline">UTC</Badge>
           </div>
           <TrafficChart data={series} hourly={period === 1} />
         </section>
         <section className="panel activity-panel">
           <div className="panel-heading">
-            <div>
-              <h2>Dónde están entrando</h2>
-              <p>Proyectos por páginas vistas</p>
-            </div>
-            <Activity size={16} className="text-primary" />
+            <h2>Proyectos por páginas vistas</h2>
           </div>
           {hasData && active.length ? (
             <div className="ranking">
@@ -790,9 +706,6 @@ function Overview({
                 .map((p) => (
                   <button key={p.id} onClick={() => navigate("overview", p.id)}>
                     <div>
-                      <span className="project-avatar">
-                        {p.name.slice(0, 2)}
-                      </span>
                       <strong>{p.name}</strong>
                       <span>{formatNumber(p.analytics!.pageviews)}</span>
                     </div>
@@ -815,7 +728,6 @@ function Overview({
           )}
           <button className="panel-link" onClick={() => navigate("projects")}>
             Ver todos los proyectos
-            <ArrowUpRight size={14} />
           </button>
         </section>
       </div>
@@ -830,22 +742,13 @@ function Overview({
         <Projects projects={data.projects} teamSlug={data.teamSlug} compact />
       )}
       <div className="section-heading">
-        <div>
-          <h2>Errores y actividad</h2>
-          <p>
-            Producción ·{" "}
-            {session.drains
-              ? "Histórico recibido por Drains"
-              : "Lectura en vivo de los despliegues actuales"}
-          </p>
-        </div>
+        <h2>Errores y actividad</h2>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => navigate("errors", project?.id)}
         >
           Ver errores
-          <ArrowUpRight size={14} />
         </Button>
       </div>
       <Logs
@@ -865,21 +768,18 @@ function Metric({
   label,
   value,
   hint,
-  icon,
 }: {
   label: string;
   value: number | null;
-  hint: string;
-  icon: React.ReactNode;
+  hint?: string;
 }) {
   return (
     <div className="metric">
       <div>
         <span>{label}</span>
-        {icon}
       </div>
       <strong>{formatNumber(value)}</strong>
-      <p>{hint}</p>
+      {hint && <p>{hint}</p>}
     </div>
   );
 }
@@ -916,7 +816,6 @@ const ProjectRow = memo(function ProjectRow({
             className="project-title"
             onClick={() => navigate("overview", p.id)}
           >
-            <span className="project-avatar">{p.name.slice(0, 2)}</span>
             <span>
               <strong>{p.name}</strong>
               <small>{p.domain ?? p.framework ?? "Sin dominio"}</small>
@@ -1014,10 +913,7 @@ function Projects({
   return (
     <section className="panel projects-panel">
       <div className="panel-heading">
-        <div className="flex items-center gap-2">
-          <h2>Proyectos</h2>
-          <Badge variant="secondary">{rows.length}</Badge>
-        </div>
+        <h2>Proyectos</h2>
         <div className="table-actions">
           <Button
             variant={onlyActive ? "secondary" : "ghost"}
@@ -1025,7 +921,6 @@ function Projects({
             aria-pressed={onlyActive}
             onClick={() => setOnlyActive(!onlyActive)}
           >
-            <SlidersHorizontal size={13} />
             Con tráfico
           </Button>
           <Button
@@ -1092,7 +987,6 @@ function Projects({
       {compact && rows.length > TABLE_PAGE_SIZE && (
         <button className="panel-link" onClick={() => navigate("projects")}>
           Ver los {rows.length} proyectos
-          <ArrowUpRight size={14} />
         </button>
       )}
     </section>
@@ -1387,9 +1281,6 @@ function Logs({
           </div>
         ) : (
           <div className="log-empty">
-            <span className="empty-icon">
-              {errorsOnly ? <ShieldCheck size={23} /> : <Terminal size={23} />}
-            </span>
             <h3>
               {search || level !== "all"
                 ? "No hay coincidencias"
@@ -1397,11 +1288,12 @@ function Logs({
                   ? "No se han recibido errores"
                   : "No se han recibido logs"}
             </h3>
-            <p>
-              {data?.mode === "history"
-                ? "Se muestran los eventos que llegaron al Drain en el periodo seleccionado."
-                : "La lectura en vivo cubre una ventana breve; no confirma la ausencia de errores anteriores."}
-            </p>
+            {data?.mode !== "history" && (
+              <p>
+                La lectura en vivo cubre una ventana breve; no confirma la
+                ausencia de errores anteriores.
+              </p>
+            )}
           </div>
         )}
         {data && <TablePagination label={errorsOnly ? "errores" : "logs"} page={pagination.page} total={logs.length} onPageChange={pagination.setPage} />}
@@ -1413,12 +1305,6 @@ function Logs({
         )}
         <div className="logs-footer">
           <span>
-            <span
-              className={cn(
-                "status-dot",
-                (!data || data.issues.length > 0) && "status-muted",
-              )}
-            />
             {isValidating
               ? multiSource
                 ? "Consultando fuentes…"
@@ -1427,7 +1313,6 @@ function Logs({
                 ? "Histórico de Neon"
                 : "Lectura en vivo"}
           </span>
-          <span>{logs.length} eventos recibidos</span>
         </div>
       </section>
       {data?.issues.length ? (
@@ -1459,14 +1344,9 @@ function Settings({ session }: { session: Session }) {
     <div className="settings-layout">
       <section className="panel">
         <div className="panel-heading">
-          <div>
-            <h2>Conexiones</h2>
-            <p>Credenciales guardadas únicamente en el servidor.</p>
-          </div>
-          <ShieldCheck size={17} />
+          <h2>Conexiones</h2>
         </div>
         <div className="setting-row">
-          <span className="connection-icon">▲</span>
           <div>
             <h3>Vercel</h3>
             <p>Proyectos, Web Analytics y logs de producción.</p>
@@ -1476,19 +1356,6 @@ function Settings({ session }: { session: Session }) {
           </Badge>
         </div>
         <div className="setting-row">
-          <span className="connection-icon">
-            <ShieldCheck size={19} />
-          </span>
-          <div>
-            <h3>Clerk</h3>
-            <p>Sesión privada y lista de administradores permitidos.</p>
-          </div>
-          <Badge variant="outline">Conectado</Badge>
-        </div>
-        <div className="setting-row">
-          <span className="connection-icon">
-            <UsersIcon size={19} />
-          </span>
           <div>
             <h3>Usuarios de tus proyectos</h3>
             <p>
@@ -1502,9 +1369,6 @@ function Settings({ session }: { session: Session }) {
           </Button>
         </div>
         <div className="setting-row">
-          <span className="connection-icon">
-            <UsersIcon size={19} />
-          </span>
           <div>
             <h3>Facturación de Diariamente</h3>
             <p>
@@ -1519,9 +1383,6 @@ function Settings({ session }: { session: Session }) {
           </Badge>
         </div>
         <div className="setting-row">
-          <span className="connection-icon">
-            <Terminal size={19} />
-          </span>
           <div>
             <h3>Neon + Log Drain</h3>
             <p>
@@ -1533,9 +1394,6 @@ function Settings({ session }: { session: Session }) {
           </Badge>
         </div>
         <div className="setting-row">
-          <span className="connection-icon">
-            <Bug size={19} />
-          </span>
           <div>
             <h3>Sentry</h3>
             <p>
@@ -1548,9 +1406,6 @@ function Settings({ session }: { session: Session }) {
           </Badge>
         </div>
         <div className="setting-row">
-          <span className="connection-icon">
-            <Database size={19} />
-          </span>
           <div>
             <h3>Supabase</h3>
             <p>
@@ -1565,10 +1420,7 @@ function Settings({ session }: { session: Session }) {
       </section>
       <section className="panel">
         <div className="panel-heading">
-          <div>
-            <h2>Conectar Sentry y Supabase</h2>
-            <p>Tokens de solo lectura, guardados en el servidor.</p>
-          </div>
+          <h2>Conectar Sentry y Supabase</h2>
         </div>
         <ol className="setup-steps">
           <li>
@@ -1600,10 +1452,7 @@ function Settings({ session }: { session: Session }) {
       </section>
       <section className="panel">
         <div className="panel-heading">
-          <div>
-            <h2>Activar el histórico de logs</h2>
-            <p>Configuración en el servidor y en Vercel.</p>
-          </div>
+          <h2>Activar el histórico de logs</h2>
         </div>
         <ol className="setup-steps">
           <li>
@@ -1653,7 +1502,6 @@ function Settings({ session }: { session: Session }) {
         <div className="setting-row">
           <div>
             <h3>Apariencia</h3>
-            <p>Se recuerda en este dispositivo.</p>
           </div>
           <Select value={theme ?? "dark"} onValueChange={setTheme}>
             <SelectTrigger aria-label="Apariencia" className="w-36">
@@ -1669,10 +1517,6 @@ function Settings({ session }: { session: Session }) {
         <div className="setting-row">
           <div>
             <h3>Caché local</h3>
-            <p>
-              La última lectura se muestra al abrir y se actualiza en segundo
-              plano.
-            </p>
           </div>
           <Button
             variant="outline"
@@ -1688,14 +1532,7 @@ function Settings({ session }: { session: Session }) {
               setCleared(true);
             }}
           >
-            {cleared ? (
-              <>
-                <Check size={14} />
-                Caché renovada
-              </>
-            ) : (
-              "Renovar caché"
-            )}
+            {cleared ? "Caché renovada" : "Renovar caché"}
           </Button>
         </div>
         <div className="panel-padding">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, ExternalLink, GitCommitHorizontal, RefreshCw, Search, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Search } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
@@ -83,18 +83,15 @@ export default function Activity({ userId }: { userId: string }) {
             <strong className="font-medium text-foreground">{count}</strong> {count === 1 ? "commit" : "commits"} · <strong className="font-medium text-foreground">{digest.projects.length}</strong> {digest.projects.length === 1 ? "proyecto" : "proyectos"}
           </span>}
           <Button variant="outline" size="sm" onClick={() => void run("data")} disabled={!!generating || !data?.connected || !data.storage}>
-            <RefreshCw size={14} className={generating === "data" ? "animate-spin" : undefined} />
             {generating === "data" ? "Obteniendo…" : digest ? "Actualizar datos" : "Obtener datos"}
           </Button>
           <Button size="sm" onClick={() => void run("summary")} disabled={!!generating || !digest || !count}>
-            <Sparkles size={14} className={generating === "summary" ? "animate-pulse" : undefined} />
             {generating === "summary" ? "Generando…" : digest?.aiSummary ? "Regenerar resumen" : "Generar resumen"}
           </Button>
         </div>
       </div>
 
       {generating === "data" && <div className="notice" role="status">Consultando tus repositorios y ramas. Puede tardar unos minutos.</div>}
-      {generating === "summary" && <div className="notice" role="status">Generando el resumen con IA.</div>}
       {!data && !error && <div role="status" aria-label="Cargando actividad"><Skeleton className="h-28 w-full" /><Skeleton className="mt-4 h-72 w-full" /></div>}
 
       {data && (!data.connected || !data.storage) && (
@@ -111,7 +108,6 @@ export default function Activity({ userId }: { userId: string }) {
 
       {data?.connected && data.storage && !digest && !error && (
         <section className="empty-state panel">
-          <GitCommitHorizontal size={24} aria-hidden="true" />
           <h2>Aún no hay resumen para este día</h2>
           <p>Genera uno ahora o elige otro día. El resumen automático se guarda a las 20:00.</p>
         </section>
@@ -119,7 +115,7 @@ export default function Activity({ userId }: { userId: string }) {
 
       {digest && <>
         {digest.aiSummary && <section className="panel panel-padding space-y-2" aria-label="Resumen del día con IA">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground"><Sparkles size={14} aria-hidden="true" />Resumen del día</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">Resumen del día</h2>
           {summary ? <div className="space-y-4">{summary.map((section) => <div key={section.project} className="space-y-1.5">
             <h3 className="break-all text-sm font-semibold">{section.project}</h3>
             <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">{section.items.map((item) => <li key={item}>{item}</li>)}</ul>
@@ -135,9 +131,8 @@ export default function Activity({ userId }: { userId: string }) {
           </div>
           <p className="text-sm text-muted-foreground">{project.summary.map((group) => `${group.label}: ${group.count}`).join(" · ")}</p>
           <ul className="divide-y divide-border">
-            {project.commits.map((commit) => <li key={commit.sha} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-              <GitCommitHorizontal size={16} className="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
-              <div className="min-w-0 flex-1 space-y-1">
+            {project.commits.map((commit) => <li key={commit.sha} className="py-3 first:pt-0 last:pb-0">
+              <div className="min-w-0 space-y-1">
                 <a className="break-words text-sm font-medium hover:underline underline-offset-4" href={commit.url} target="_blank" rel="noreferrer">{commit.title || "Commit sin mensaje"}</a>
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><time dateTime={commit.timestamp}>{clock(commit.timestamp)}</time><code>{commit.sha.slice(0, 7)}</code><span className="break-all">{commit.branches.join(", ")}</span></div>
                 {commit.message !== commit.title && <details className="text-sm"><summary className="cursor-pointer text-muted-foreground">Mensaje completo</summary><p className="mt-2 whitespace-pre-wrap break-words">{commit.message}</p></details>}

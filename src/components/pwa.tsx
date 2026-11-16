@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 type InstallEvent = Event & {
   prompt(): Promise<void>;
@@ -59,7 +58,6 @@ export function PwaInstall() {
         setPrompt(null);
       }}
     >
-      <Download size={15} />
       Instalar app
     </Button>
   );

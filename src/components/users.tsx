@@ -6,10 +6,7 @@ import {
   ArrowDown,
   ArrowUp,
   ArrowUpDown,
-  CalendarDays,
-  RefreshCw,
   Search,
-  Users as UsersIcon,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -37,7 +34,7 @@ import type {
   Session,
   UsersResult,
 } from "@/lib/types";
-import { cn } from "@/lib/utils";
+
 import { USERS_PAGE_SIZE, type UsersOrderBy } from "@/lib/user-data";
 
 const sortableColumns = [
@@ -107,7 +104,6 @@ const UserCard = memo(function UserCard({
   return (
     <li className="user-card">
       <div className="user-card-identity">
-        <span className="project-avatar" aria-hidden="true">{user.name.slice(0, 1)}</span>
         <div className="user-card-name">
           <strong>{user.name}</strong>
           <span>{user.email ?? "Sin correo"}</span>
@@ -157,9 +153,6 @@ const UserRow = memo(function UserRow({
     <tr>
       <td>
         <div className="project-title">
-          <span className="project-avatar" aria-hidden="true">
-            {user.name.slice(0, 1)}
-          </span>
           <div>
             <strong>{user.name}</strong>
             <small>{user.email ?? "Sin correo"}</small>
@@ -304,7 +297,6 @@ export default function Users({
           disabled={isValidating}
           onClick={() => void mutate()}
         >
-          <RefreshCw size={14} className={cn(isValidating && "animate-spin")} />
           Buscar proyectos
         </Button>
       </div>
@@ -456,22 +448,14 @@ function ProjectUsers({
   return (
     <div className="users-screen">
       <div className="users-source">
-        <div>
-          <strong>{project.name}</strong>
-          <span>Usuarios registrados en la aplicación</span>
-        </div>
+        <strong>{project.name}</strong>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">Clerk · Producción</Badge>
           <Button
             variant="outline"
             size="sm"
             disabled={isValidating}
             onClick={refresh}
           >
-            <RefreshCw
-              size={14}
-              className={cn(isValidating && "animate-spin")}
-            />
             {isValidating ? "Actualizando" : "Actualizar"}
           </Button>
         </div>
@@ -511,42 +495,20 @@ function ProjectUsers({
         aria-label={`Resumen de registros de ${project.name}`}
       >
         {[
-          {
-            label: "Usuarios totales",
-            value: summary?.total,
-            note: "Cuentas registradas",
-            icon: UsersIcon,
-          },
-          {
-            label: "Nuevos en 24 horas",
-            value: summary?.newUsers.day,
-            note: "Últimas 24 horas",
-            icon: CalendarDays,
-          },
-          {
-            label: "Nuevos en 7 días",
-            value: summary?.newUsers.week,
-            note: "Últimos 7 días",
-            icon: CalendarDays,
-          },
-          {
-            label: "Nuevos en 30 días",
-            value: summary?.newUsers.month,
-            note: "Últimos 30 días",
-            icon: CalendarDays,
-          },
+          { label: "Usuarios totales", value: summary?.total },
+          { label: "Nuevos en 24 horas", value: summary?.newUsers.day },
+          { label: "Nuevos en 7 días", value: summary?.newUsers.week },
+          { label: "Nuevos en 30 días", value: summary?.newUsers.month },
         ].map((metric) => (
           <div className="metric" key={metric.label}>
             <div>
               <span>{metric.label}</span>
-              <metric.icon size={15} />
             </div>
             {!summary && !error ? (
               <Skeleton className="my-3 h-8 w-16" />
             ) : (
               <strong>{number(metric.value)}</strong>
             )}
-            <p>{metric.note}</p>
           </div>
         ))}
       </div>
@@ -557,13 +519,9 @@ function ProjectUsers({
         aria-busy={isValidating}
       >
         <div className="panel-heading">
-          <div>
-            <h2 id="users-list-title">
-              {filters.period ? "Nuevos registros" : "Todos los usuarios"}
-            </h2>
-            <p className="users-desktop-hint">Pulsa en una cabecera para cambiar el orden.</p>
-          </div>
-          <UsersIcon size={18} className="text-muted-foreground" />
+          <h2 id="users-list-title">
+            {filters.period ? "Nuevos registros" : "Todos los usuarios"}
+          </h2>
         </div>
         <div className="table-toolbar users-toolbar">
           <div className="search-field">
@@ -739,7 +697,7 @@ function ProjectUsers({
       <p className="users-updated" role="status">
         {current
           ? `Última lectura: ${date(Date.parse(current.fetchedAt))}. Actualización automática cada minuto.`
-          : "La consulta de usuarios requiere acceso de administrador."}
+          : null}
       </p>
     </div>
   );

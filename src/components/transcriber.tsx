@@ -7,7 +7,6 @@ import {
   Copy,
   Download,
   ExternalLink,
-  LoaderCircle,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -111,7 +110,6 @@ export default function Transcriber() {
             disabled={busy}
           />
           <Button type="submit" disabled={busy || !url.trim()}>
-            {busy && <LoaderCircle size={15} className="animate-spin" />}
             {busy ? "Transcribiendo…" : "Transcribir"}
           </Button>
         </div>
