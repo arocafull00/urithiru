@@ -21,9 +21,9 @@ async function vercelCounts(projects: Project[], since: Date, until: Date) {
   const chunks = await mapConcurrent(projects.filter((p) => p.deploymentId), 6, async (project) => {
     const requests = new Set<string>();
     let atLeast = false;
-    // Vercel classifies HTTP 5xx requests as error even without console.error.
-    // One query per project stays inside its team-wide log-query time quota.
-    const filters: Record<string, string>[] = [{ level: "error,fatal" }];
+    // Vercel combines these filters with AND; query separately and deduplicate.
+    // In particular, 5xx requests need not contain any console.error entries.
+    const filters: Record<string, string>[] = [{ level: "error,fatal" }, { statusCode: "5xx" }];
     await Promise.all(filters.map(async (filter) => {
       let page = 0;
       while (true) {
@@ -57,12 +57,12 @@ async function vercelCounts(projects: Project[], since: Date, until: Date) {
   return chunks;
 }
 
-export async function collectErrorCounts(projects: Project[], since: Date, until: Date) {
+export async function collectErrorCounts(projects: Project[], since: Date, until: Date, vercelProjects = projects) {
   const counts: ErrorCount[] = [];
   const issues: string[] = [];
   // Failure in one project/source must not hide a spike in another.
   const tasks = [
-    ...projects.map((project) => ({ name: `Vercel/${project.name}`, run: () => vercelCounts([project], since, until) })),
+    ...vercelProjects.map((project) => ({ name: `Vercel/${project.name}`, run: () => vercelCounts([project], since, until) })),
     ...(sentryConfigured() ? [{ name: "Sentry", run: () => getSentryErrorCounts(projects, since, until) }] : []),
     ...(supabaseConfigured() ? [{ name: "Supabase", run: async () => {
       const result = await getSupabaseLogs(projects, "", 1, true, { since, until });

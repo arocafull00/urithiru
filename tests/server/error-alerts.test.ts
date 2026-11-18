@@ -15,6 +15,7 @@ test("Vercel: deduplica error+5xx, excluye eventos antiguos y conserva cobertura
     assert.equal(url.searchParams.get("startDate"), String(since.getTime()));
     return Response.json({ hasMoreRows: false, rows: [
       { requestId: "same-error", timestamp: "2026-11-18T11:50:00Z" },
+      ...(url.searchParams.has("statusCode") ? [{ requestId: "5xx-without-error-log", timestamp: "2026-11-18T11:51:00Z" }] : []),
       { requestId: "old-error", timestamp: "2026-11-18T11:44:59Z" },
       { requestId: "future-error", timestamp: "2026-11-18T12:00:01Z" },
     ] });
@@ -27,7 +28,7 @@ test("Vercel: deduplica error+5xx, excluye eventos antiguos y conserva cobertura
   t.after(() => { process.env = old; });
   const result = await collectErrorCounts([project, { ...project, id: "prj_fail", name: "failed" }], since, until);
   assert.equal(result.counts.length, 1);
-  assert.equal(result.counts[0].count, 1);
+  assert.equal(result.counts[0].count, 2);
   assert.equal(result.issues.length, 1);
 });
 

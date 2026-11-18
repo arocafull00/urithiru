@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { database } from "./db";
 import { collectErrorCounts } from "./error-alert-sources";
-import { alertMessage, exceedsThreshold, ERROR_COOLDOWN_MINUTES, ERROR_WINDOW_MINUTES } from "./error-alerts-data";
+import { alertMessage, exceedsThreshold, ERROR_COOLDOWN_MINUTES, ERROR_WINDOW_MINUTES, vercelAlertProjects } from "./error-alerts-data";
 import { HttpError } from "./http";
 import { listProjects } from "./vercel";
 
@@ -31,7 +31,8 @@ export async function runErrorAlerts({ test = false, dryRun = false } = {}) {
   )`;
   const until = new Date();
   const since = new Date(until.getTime() - ERROR_WINDOW_MINUTES * 60000);
-  const result = test ? { counts: [], issues: [] } : await collectErrorCounts(await listProjects(process.env.VERCEL_TEAM_ID), since, until);
+  const projects = test ? [] : await listProjects(process.env.VERCEL_TEAM_ID);
+  const result = test ? { counts: [], issues: [] } : await collectErrorCounts(projects, since, until, vercelAlertProjects(projects, until));
   const spikes = result.counts.filter(exceedsThreshold);
   if (dryRun) return { dryRun: true, spikes, issues: result.issues, checked: result.counts.length };
   const messages = test ? [{ key: "test", count: 0,
