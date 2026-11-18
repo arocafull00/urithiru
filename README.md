@@ -107,6 +107,16 @@ Además de Vercel, la vista de Logs/Errores puede incluir otras dos fuentes. Cad
 
 Con los tokens en `.env.local`, la prueba de integración `scripts/smoke.ts` (ver Validar) indica cuántos eventos llegan de cada fuente y qué proyectos no se han emparejado.
 
+## Alertas de errores por WhatsApp
+
+`.github/workflows/error-alerts.yml` revisa automáticamente las fuentes cada cinco minutos, aunque el panel esté cerrado. GitHub Actions puede retrasar las ejecuciones: no es una garantía de aviso en cinco minutos. Se envía un WhatsApp al alcanzar **10 errores en los últimos 15 minutos por proyecto y fuente**, con un máximo de **un aviso por hora para cada combinación**. Sentry cuenta eventos de esa ventana (también de issues resueltos), no el contador histórico del issue. Vercel consulta peticiones de producción con nivel error/fatal o respuesta 5xx, sin contar dos veces una petición que cumpla ambos filtros. Con un Drain configurado, cuenta las entradas persistidas. Supabase consulta solo esa ventana y avisa si su cobertura falla.
+
+Configura en Production `ERROR_ALERT_WHAPI_TOKEN`, `ERROR_ALERT_WHATSAPP_TO` (número internacional), `ERROR_ALERT_CRON_SECRET`, `DATABASE_URL`, `VERCEL_TEAM_ID` y `APP_URL` (HTTPS), además de los tokens de las fuentes. En GitHub Actions, `URITHIRU_ERROR_ALERT_SECRET` debe coincidir con `ERROR_ALERT_CRON_SECRET`; se reutiliza la variable `URITHIRU_URL`. Publica el workflow en la rama predeterminada y compruébalo con `workflow_dispatch`. El plan Hobby de Vercel no permite este cron frecuente, por lo que se programa en Actions.
+
+`POST /api/cron/error-alerts` exige `Authorization: Bearer ERROR_ALERT_CRON_SECRET`. `?dryRun=1` consulta las fuentes sin enviar; `?test=1` envía una prueba al mismo destinatario. La tabla de bloqueo `urithiru_error_alerts` se crea con la migración `0003_error_alerts.sql` o al ejecutar por primera vez el endpoint. El bloqueo es atómico y persiste en Neon: también evita duplicados con ejecuciones simultáneas y durante una hora si el proveedor no confirma el resultado. Los rechazos confirmados pueden reintentarse pasados cinco minutos. Un fallo en una fuente permite avisar con las demás, pero devuelve 503 para que Actions muestre el fallo. Los mensajes incluyen nombre del proyecto, fuente, recuento y enlace al panel; no incluyen mensajes de excepción ni rutas con datos privados.
+
+Se reutiliza Whapi, sin activar planes de pago. El canal debe estar vinculado y su plan debe permitir los envíos. Whapi solo se consulta cuando hay un mensaje que enviar; no se comprueba su salud en cada ejecución. Su Sandbox gratuito tiene límites y está orientado a desarrollo; una respuesta `sent` confirma la aceptación por Whapi, no la lectura o entrega en el teléfono.
+
 ## Actividad diaria de GitHub
 
 La sección **Actividad** (`/?view=activity`) guarda un resumen por día y repositorio: tipos de cambio según los prefijos de los mensajes (`feat`, `fix`, etc.), títulos, mensajes completos, horas, ramas y enlaces a los commits. Permite buscar un proyecto, consultar fechas anteriores y generar o regenerar un día manualmente. Funciona independientemente de la conexión con Vercel. La lectura y la generación manual exigen permiso de administrador de Urithiru.

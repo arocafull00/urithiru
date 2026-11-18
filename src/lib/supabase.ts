@@ -49,6 +49,7 @@ export async function getSupabaseLogs(
   projectId: string,
   period: Period,
   errorsOnly: boolean,
+  window?: { since: Date; until: Date },
 ): Promise<LogResult> {
   const result: LogResult = {
     logs: [],
@@ -70,8 +71,8 @@ export async function getSupabaseLogs(
       "supabase",
       projectId,
     );
-    const end = new Date();
-    const start = new Date(end.getTime() - 86400000);
+    const end = window?.until ?? new Date();
+    const start = window?.since ?? new Date(end.getTime() - 86400000);
     const sql = supabaseQuery(errorsOnly);
     const chunks = await mapConcurrent(
       owners,

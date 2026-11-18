@@ -1,0 +1,33 @@
+name: Alertas de errores por WhatsApp
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: error-alerts
+  cancel-in-progress: false
+
+jobs:
+  error-alerts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Revisar errores y avisar por WhatsApp
+        env:
+          APP_URL: ${{ vars.URITHIRU_URL }}
+          CRON_SECRET: ${{ secrets.URITHIRU_ERROR_ALERT_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_URL" || -z "$CRON_SECRET" || "$APP_URL" != https://* ]]; then
+            echo 'Faltan URITHIRU_URL o URITHIRU_ERROR_ALERT_SECRET.'
+            exit 1
+          fi
+          curl --silent --show-error --fail --output /dev/null \
+            --connect-timeout 15 --max-time 290 \
+            --request POST --header "Authorization: Bearer $CRON_SECRET" \
+            "${APP_URL%/}/api/cron/error-alerts"

@@ -2,9 +2,30 @@ import "server-only";
 import { parseProjectMap, selectOwners, sentryLog } from "./sources";
 import type { LogEntry, LogResult, Period, Project } from "./types";
 import { HttpError } from "./http";
+import type { ErrorCount } from "./error-alerts-data";
+import { ownerOf } from "./sources";
 
 export const sentryConfigured = () =>
   Boolean(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG);
+
+export async function getSentryErrorCounts(projects: Project[], since: Date, until: Date): Promise<ErrorCount[]> {
+  const org = encodeURIComponent(process.env.SENTRY_ORG!);
+  const params = new URLSearchParams({ dataset: "errors", query: "level:[error,fatal]",
+    start: since.toISOString(), end: until.toISOString(), per_page: "100" });
+  params.append("field", "project");
+  params.append("field", "count()");
+  const body = await sentryFetch(`/api/0/organizations/${org}/events/?${params}`);
+  if (!Array.isArray(body.data) || body.data.length >= 100)
+    throw new Error("Sentry: recuento incompleto o desconocido.");
+  const map = parseProjectMap(process.env.SENTRY_PROJECTS);
+  return body.data.map((row: Record<string, unknown>) => {
+    const slug = String(row.project ?? "");
+    const count = Number(row["count()"]);
+    if (!slug || !Number.isFinite(count) || count < 0) throw new Error("Sentry: recuento no válido.");
+    const owner = ownerOf({ key: slug, name: slug }, projects, map, "sentry");
+    return { source: "sentry", projectId: owner.id, projectName: owner.name, count };
+  });
+}
 
 export async function getSentryEvent(issueId: string) {
   if (!/^\d+$/.test(issueId))
