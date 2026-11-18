@@ -21,18 +21,25 @@ async function vercelCounts(projects: Project[], since: Date, until: Date) {
   const chunks = await mapConcurrent(projects.filter((p) => p.deploymentId), 6, async (project) => {
     const requests = new Set<string>();
     let atLeast = false;
-    // These filters are separate because Vercel combines filters with AND.
-    const filters: Record<string, string>[] = [{ level: "error,fatal" }, { statusCode: "5xx" }];
+    // Vercel classifies HTTP 5xx requests as error even without console.error.
+    // One query per project stays inside its team-wide log-query time quota.
+    const filters: Record<string, string>[] = [{ level: "error,fatal" }];
     await Promise.all(filters.map(async (filter) => {
       let page = 0;
       while (true) {
         const params = new URLSearchParams({ projectId: project.id, ownerId: process.env.VERCEL_TEAM_ID!,
           environment: "production", startDate: String(since.getTime()), endDate: String(until.getTime()),
           page: String(page), ...filter });
-        const response = await fetch(`https://vercel.com/api/logs/request-logs?${params}`, {
-          headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` }, cache: "no-store",
-          signal: AbortSignal.timeout(12000), redirect: "error",
-        });
+        let response: Response | undefined;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          response = await fetch(`https://vercel.com/api/logs/request-logs?${params}`, {
+            headers: { Authorization: `Bearer ${process.env.VERCEL_TOKEN}` }, cache: "no-store",
+            signal: AbortSignal.timeout(20000), redirect: "error",
+          }).catch(() => undefined);
+          if (response && (response.ok || response.status < 500)) break;
+          if (!attempt) await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        if (!response) throw new Error("Vercel: la consulta de errores agotó el tiempo de espera.");
         if (!response.ok) throw new Error(`Vercel: consulta de errores rechazada (${response.status}).`);
         const body = await response.json();
         if (!Array.isArray(body.rows)) throw new Error("Vercel: formato de errores desconocido.");
@@ -75,7 +82,7 @@ export async function collectErrorCounts(projects: Project[], since: Date, until
   ];
   await mapConcurrent(tasks, 6, async ({ name, run }) => {
     try { counts.push(...await run()); }
-    catch { issues.push(`${name}: no se pudo consultar la ventana de errores.`); }
+    catch (error) { issues.push(`${name}: ${error instanceof Error ? error.message : "no se pudo consultar la ventana de errores."}`); }
   });
   return { counts, issues };
 }
