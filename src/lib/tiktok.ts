@@ -1,6 +1,7 @@
 import "server-only";
 import { HttpError } from "./http";
 import type { Transcript } from "./types";
+import type { ProfileVideo } from "./tiktok-profile";
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
@@ -155,6 +156,83 @@ async function transcribe(media: Blob) {
     text: String(body.text ?? "").trim(),
     language: typeof body.language === "string" ? body.language : null,
   };
+}
+
+function rehydration(html: string) {
+  const json = html.match(
+    /<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/,
+  )?.[1];
+  try {
+    return json ? JSON.parse(json).__DEFAULT_SCOPE__ : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function listTikTokProfile(
+  handle: string,
+  limit: number,
+  fetcher: typeof fetch = fetch,
+) {
+  const res = await fetcher(`https://www.tiktok.com/@${handle}`, {
+    headers: {
+      "User-Agent": USER_AGENT,
+      "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+    },
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!res.ok)
+    throw new HttpError(502, `TikTok ha respondido con ${res.status}.`);
+  const user = rehydration(await res.text())?.["webapp.user-detail"]?.userInfo
+    ?.user as
+    | { uniqueId?: string; nickname?: string; secUid?: string; privateAccount?: boolean }
+    | undefined;
+  if (!user?.secUid)
+    throw new HttpError(404, "No se ha encontrado el perfil de TikTok.");
+  if (user.privateAccount)
+    throw new HttpError(403, "El perfil es privado.");
+  const author = user.uniqueId ?? handle;
+  const videos = new Map<string, ProfileVideo>();
+  let cursor = Date.now();
+  for (let page = 0; videos.size < limit && page < 40; page++) {
+    const query = new URLSearchParams({
+      aid: "1988",
+      app_name: "tiktok_web",
+      device_platform: "web_pc",
+      secUid: user.secUid,
+      type: "1",
+      count: "15",
+      cursor: String(cursor),
+    });
+    const list = await fetcher(
+      `https://www.tiktok.com/api/creator/item_list/?${query}`,
+      {
+        headers: { "User-Agent": USER_AGENT, Referer: res.url },
+        signal: AbortSignal.timeout(15000),
+      },
+    );
+    const body = list.ok ? await list.json().catch(() => null) : null;
+    const items: (Item & { imagePost?: unknown })[] | undefined =
+      body?.itemList;
+    if (!items) {
+      if (videos.size) break;
+      throw new HttpError(
+        502,
+        `TikTok no ha permitido leer los vídeos del perfil (${list.status}).`,
+      );
+    }
+    for (const item of items)
+      if (item.id && !item.imagePost && videos.size < limit)
+        videos.set(item.id, {
+          id: item.id,
+          url: `https://www.tiktok.com/@${author}/video/${item.id}`,
+          description: item.desc ?? "",
+        });
+    const oldest = Math.min(...items.map((i) => Number(i.createTime) || cursor / 1000));
+    if (!body.hasMorePrevious || !items.length || oldest * 1000 >= cursor) break;
+    cursor = oldest * 1000;
+  }
+  return { author, authorName: user.nickname ?? author, videos: [...videos.values()] };
 }
 
 export async function transcribeTikTok(input: string): Promise<Transcript> {

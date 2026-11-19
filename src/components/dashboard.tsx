@@ -59,10 +59,14 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { TABLE_PAGE_SIZE } from "@/lib/pagination";
+import { isPortfolioProject } from "@/lib/portfolio-project";
 
 const TrafficChart = dynamic(() => import("./traffic-chart"), {
   ssr: false,
   loading: () => <Skeleton className="h-64 w-full" />,
+});
+const PortfolioVisitors = dynamic(() => import("./portfolio-visitors"), {
+  loading: () => <Skeleton className="h-72 w-full" />,
 });
 const Users = dynamic(() => import("./users"), {
   loading: () => <Skeleton className="h-72 w-full" />,
@@ -392,7 +396,7 @@ function Workspace({
         mutateAll((key) => {
           if (!Array.isArray(key) || key[1] !== session.userId) return false;
           const [path, query] = String(key[0]).split("?");
-          if (!["/api/acquisition", "/api/signup-acquisition", "/api/analytics", "/api/logs"].includes(path)) return false;
+          if (!["/api/acquisition", "/api/signup-acquisition", "/api/analytics", "/api/portfolio-visitors", "/api/logs"].includes(path)) return false;
           const params = new URLSearchParams(query);
           return params.get("team") === team &&
             params.get("period") === String(period) &&
@@ -732,12 +736,15 @@ function Overview({
         </section>
       </div>
       {project ? (
+        <>
+        {isPortfolioProject(project) && <PortfolioVisitors project={project} team={team} period={period} userId={session.userId} />}
         <ProjectDetails
           project={project}
           team={team}
           period={period}
           userId={session.userId}
         />
+        </>
       ) : (
         <Projects projects={data.projects} teamSlug={data.teamSlug} compact />
       )}

@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { PortfolioVisitorsReport } from "@/lib/portfolio-visitors";
 import type {
   Acquisition,
   SignupSummary,
@@ -16,6 +17,7 @@ type State = {
   session: Session | null;
   snapshots: Record<string, Dashboard>;
   acquisitionSnapshots: Record<string, Acquisition>;
+  visitorSnapshots: Record<string, PortfolioVisitorsReport>;
   signupSnapshots: Record<string, SignupSummary>;
   userSnapshots: Record<string, UsersResult>;
   clerkProjects: Record<string, ClerkProjectsResult>;
@@ -54,6 +56,7 @@ const initial = {
   session: null,
   snapshots: {},
   acquisitionSnapshots: {},
+  visitorSnapshots: {},
   signupSnapshots: {},
   userSnapshots: {},
   clerkProjects: {},
@@ -146,7 +149,7 @@ export const useDashboard = create<State>()(
           transcripts: [
             transcript,
             ...state.transcripts.filter((t) => t.id !== transcript.id),
-          ].slice(0, 50),
+          ].slice(0, 300),
         })),
       removeTranscript: (id) =>
         set((state) => ({
@@ -161,6 +164,7 @@ export const useDashboard = create<State>()(
         session: state.session,
         snapshots: state.snapshots,
         acquisitionSnapshots: state.acquisitionSnapshots,
+        visitorSnapshots: state.visitorSnapshots,
         signupSnapshots: state.signupSnapshots,
         userSnapshots: state.userSnapshots,
         clerkProjects: state.clerkProjects,
