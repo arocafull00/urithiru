@@ -5,6 +5,7 @@ export type Section =
   | "users"
   | "activity"
   | "transcriber"
+  | "leads"
   | "logs"
   | "errors"
   | "settings";

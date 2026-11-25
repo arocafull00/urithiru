@@ -17,6 +17,7 @@ import {
   LogOut,
   Menu,
   Moon,
+  Radar,
   Search,
   Settings2,
   Star,
@@ -77,6 +78,9 @@ const ActivityView = dynamic(() => import("./activity"), {
 const Transcriber = dynamic(() => import("./transcriber"), {
   loading: () => <Skeleton className="h-40 w-full" />,
 });
+const Leads = dynamic(() => import("./leads"), {
+  loading: () => <Skeleton className="h-40 w-full" />,
+});
 const formatNumber = (n: number | null | undefined) =>
   n == null ? "—" : n.toLocaleString("es-ES");
 const navigation = [
@@ -85,6 +89,7 @@ const navigation = [
   { id: "users", name: "Usuarios", icon: UsersIcon },
   { id: "activity", name: "Actividad", icon: GitCommitHorizontal },
   { id: "transcriber", name: "Transcriptor", icon: Captions },
+  { id: "leads", name: "Clientes", icon: Radar },
   { id: "logs", name: "Logs", icon: Terminal },
   { id: "errors", name: "Errores", icon: CircleAlert },
   { id: "settings", name: "Configuración", icon: Settings2 },
@@ -373,7 +378,10 @@ function Workspace({
   const [menuOpen, setMenuOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const standalone =
-    section === "users" || section === "activity" || section === "transcriber";
+    section === "users" ||
+    section === "activity" ||
+    section === "transcriber" ||
+    section === "leads";
   const url = `/api/dashboard?period=${period}&team=${team}`;
   const snapshotKey = `${session.userId}:${team}:${period}`;
   const snapshot = useDashboard((s) => s.snapshots[snapshotKey]);
@@ -568,6 +576,8 @@ function Workspace({
             <ActivityView userId={session.userId} />
           ) : section === "transcriber" ? (
             <Transcriber />
+          ) : section === "leads" ? (
+            <Leads />
           ) : !session.vercel && section !== "settings" ? (
             <ConnectionEmpty />
           ) : section === "settings" ? (

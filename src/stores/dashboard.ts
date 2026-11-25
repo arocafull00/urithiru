@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PortfolioVisitorsReport } from "@/lib/portfolio-visitors";
+import { DEFAULT_LEAD_TOWNS, type Lead, type LeadRange, type LeadScan } from "@/lib/leads";
 import type {
   Acquisition,
   SignupSummary,
@@ -29,6 +30,12 @@ type State = {
   search: string;
   favorites: string[];
   transcripts: Transcript[];
+  leads: Lead[];
+  leadRejected: string[];
+  leadScan: LeadScan | null;
+  leadTowns: string[];
+  leadRange: LeadRange;
+  leadGroups: string[];
   patch: (
     state: Partial<
       Omit<
@@ -41,6 +48,9 @@ type State = {
         | "favorite"
         | "addTranscript"
         | "removeTranscript"
+        | "addLeads"
+        | "updateLead"
+        | "rejectLeads"
       >
     >,
   ) => void;
@@ -51,6 +61,9 @@ type State = {
   favorite: (id: string) => void;
   addTranscript: (transcript: Transcript) => void;
   removeTranscript: (id: string) => void;
+  addLeads: (leads: Lead[]) => void;
+  updateLead: (id: string, patch: Partial<Lead>) => void;
+  rejectLeads: (ids: string[]) => void;
 };
 const initial = {
   session: null,
@@ -68,6 +81,12 @@ const initial = {
   search: "",
   favorites: [] as string[],
   transcripts: [] as Transcript[],
+  leads: [] as Lead[],
+  leadRejected: [] as string[],
+  leadScan: null as LeadScan | null,
+  leadTowns: DEFAULT_LEAD_TOWNS,
+  leadRange: "m3" as LeadRange,
+  leadGroups: [] as string[],
 };
 export const useDashboard = create<State>()(
   persist(
@@ -155,6 +174,23 @@ export const useDashboard = create<State>()(
         set((state) => ({
           transcripts: state.transcripts.filter((t) => t.id !== id),
         })),
+      addLeads: (leads) =>
+        set((state) => {
+          const known = new Set(state.leads.map((l) => l.id));
+          return { leads: [...leads.filter((l) => !known.has(l.id)), ...state.leads].slice(0, 1000) };
+        }),
+      updateLead: (id, patch) =>
+        set((state) => ({
+          leads: state.leads.map((l) => (l.id === id ? { ...l, ...patch } : l)),
+        })),
+      rejectLeads: (ids) =>
+        set((state) => {
+          const drop = new Set(ids);
+          return {
+            leads: state.leads.filter((l) => !drop.has(l.id)),
+            leadRejected: [...ids, ...state.leadRejected.filter((id) => !drop.has(id))].slice(0, 4000),
+          };
+        }),
       clear: () => set(initial),
     }),
     {
@@ -174,6 +210,12 @@ export const useDashboard = create<State>()(
         team: state.team,
         favorites: state.favorites,
         transcripts: state.transcripts,
+        leads: state.leads,
+        leadRejected: state.leadRejected,
+        leadScan: state.leadScan,
+        leadTowns: state.leadTowns,
+        leadRange: state.leadRange,
+        leadGroups: state.leadGroups,
       }),
       skipHydration: true,
     },
