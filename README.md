@@ -84,6 +84,22 @@ Los vídeos sin subtítulos, privados o restringidos pueden no funcionar. Los fa
 
 La API acepta `{ "source": "youtube", "url": "…" }` o `{ "source": "tiktok", "url": "…" }`. Omitir `source` mantiene el comportamiento anterior de TikTok. Ambas opciones verifican el permiso de administrador en el servidor y responden sin caché pública.
 
+## Búsqueda de clientes
+
+La sección **Clientes** (`/?view=leads`) busca negocios locales, autónomos y particulares de Torrent y alrededores que piden públicamente ayuda con su web, con la captación de clientes o con una app o idea de software.
+
+1. Elige los municipios (por defecto Torrent y los once más cercanos) y la antigüedad de las publicaciones.
+2. Pulsa **Buscar**. Se lanzan en [Apify](https://apify.com):
+   - [Google Search Scraper](https://apify.com/apify/google-search-scraper): tres búsquedas por municipio (web, captación y software) limitadas a Facebook, Milanuncios, Reddit y Tablón de Anuncios, con frases como «busco», «necesito» o «alguien que haga». Una página de resultados por búsqueda.
+   - [Facebook Groups Scraper](https://apify.com/apify/facebook-groups-scraper), solo si añades enlaces de **grupos públicos** de Facebook (p. ej. grupos de vecinos o comercios de Torrent). Se leen hasta 100 publicaciones por grupo y solo pasan las que mencionan web, app, marketing, clientes… junto a una petición.
+3. El panel consulta el estado cada 15 s. Al terminar, cada resultado nuevo se envía a Groq en lotes de 15: descarta agencias que se anuncian, ofertas de empleo, noticias, contenido de BitTorrent y peticiones de fuera de Valencia, y resume qué se necesita, quién lo pide, el municipio y una prioridad de 1 a 5. Si se alcanza el límite gratuito de Groq, espera y continúa; si se detiene, **Filtrar pendientes** lo reanuda.
+
+Los clientes se guardan solo en este navegador (hasta 1.000) con estado Nuevo, Contactado o Descartado, y se borran al cerrar sesión. Los descartados por la IA se recuerdan para no volver a filtrarlos. La búsqueda en curso sobrevive a una recarga.
+
+Configura `APIFY_TOKEN` (Apify → Settings → API & Integrations) y `GROQ_API_KEY`. Sin Groq, los resultados se muestran sin filtrar. Coste orientativo con el plan gratuito de Apify (5 USD/mes): 36 búsquedas de Google ≈ 0,07 USD; Facebook, entre 2,6 y 5 USD por 1.000 publicaciones. Cada ejecución lleva un tope (`maxTotalChargeUsd`) de 0,50 USD en Google y 1 USD en Facebook (máximo 200 publicaciones). Solo se leen publicaciones públicas; contacta respetando las normas de cada grupo y sin enviar mensajes masivos.
+
+`POST /api/leads/scan`, `POST /api/leads/collect` y `POST /api/leads/classify` exigen permiso de administrador. Los tokens solo se usan en el servidor.
+
 ## Fuentes de tráfico y límites
 
 Web Analytics usa la API pública de Vercel (`/v1/query/web-analytics/visits/aggregate`). Los proyectos con Analytics desactivado se muestran como tales; una respuesta desconocida o fallida no se sustituye por cero. La ventana consultable depende del plan. Si Vercel rechaza 30 días, el panel conserva ese error por proyecto.
